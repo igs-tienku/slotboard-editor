@@ -211,7 +211,7 @@ function LayerVisual({ layer, assets, selectedIds, onSelect, onContextMenu }: { 
   const flipY = transform.flipY ? -1 : 1;
   const transformValue = `translate(${transform.x} ${transform.y}) rotate(${transform.rotation} ${transform.width / 2} ${transform.height / 2}) translate(${transform.flipX ? transform.width : 0} ${transform.flipY ? transform.height : 0}) scale(${flipX} ${flipY})`;
   return (
-    <g transform={transformValue} opacity={layer.opacity} onPointerDown={(event) => onSelect(event, layer.id)} onContextMenu={(event) => onContextMenu(event, layer.id)} style={{ cursor: layer.locked ? "not-allowed" : "move" }}>
+    <g transform={transformValue} opacity={layer.opacity} data-layer-locked={layer.locked ? "true" : undefined} onPointerDown={(event) => onSelect(event, layer.id)} onContextMenu={(event) => onContextMenu(event, layer.id)} style={{ cursor: layer.locked ? "grab" : "move" }}>
       {layer.type === "group"
         ? layer.children.map((child: any) => <LayerVisual key={child.id} layer={child} assets={assets} selectedIds={selectedIds} onSelect={onSelect} onContextMenu={onContextMenu} />)
         : layer.type === "image" ? <ImageVisual layer={layer} asset={assets[layer.assetId]} />
@@ -276,17 +276,56 @@ function layerCenter(layers: any[], targetId: string, offsetX = 0, offsetY = 0):
   return null;
 }
 
+function svgClientPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
+  const matrix = svg.getScreenCTM();
+  if (!matrix) return { x: clientX, y: clientY };
+  const point = svg.createSVGPoint();
+  point.x = clientX; point.y = clientY;
+  const transformed = point.matrixTransform(matrix.inverse());
+  return { x: transformed.x, y: transformed.y };
+}
+
 function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, onAutoArrange, onSelect, onStartConnection, onConnect, onMove, onUpdateConnection, onRemoveConnection }: any) {
   const drag = useRef<any>(null);
+  const pan = useRef<any>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const previousZoom = useRef(zoom);
+  const [panning, setPanning] = useState(false);
+  const margin = 600;
   const width = Math.max(1600, ...project.sceneOrder.map((id: string) => project.scenes[id].overview.x + 420));
   const height = Math.max(900, ...project.sceneOrder.map((id: string) => project.scenes[id].overview.y + 300));
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (!canvas.dataset.panReady) {
+      canvas.scrollLeft = margin * zoom;
+      canvas.scrollTop = margin * zoom;
+      canvas.dataset.panReady = "true";
+    } else if (previousZoom.current !== zoom) {
+      const ratio = zoom / previousZoom.current;
+      canvas.scrollLeft = (canvas.scrollLeft + canvas.clientWidth / 2) * ratio - canvas.clientWidth / 2;
+      canvas.scrollTop = (canvas.scrollTop + canvas.clientHeight / 2) * ratio - canvas.clientHeight / 2;
+    }
+    previousZoom.current = zoom;
+  }, [zoom]);
   return <div className="m3-flow-shell">
     <div className="m12-flow-toolbar"><button onClick={() => onZoom(Math.max(.5, zoom - .1))}>－</button><b>{Math.round(zoom * 100)}%</b><button onClick={() => onZoom(Math.min(1.5, zoom + .1))}>＋</button><button onClick={() => onZoom(1)}>100%</button><button className="arrange" onClick={onAutoArrange}>自動整理</button><span>{width} × {height}</span></div>
-    <div className="m3-flow-canvas" onPointerMove={(event) => {
-    if (!drag.current) return;
-    onMove(drag.current.id, { x: drag.current.x + (event.clientX - drag.current.startX) / zoom, y: drag.current.y + (event.clientY - drag.current.startY) / zoom });
-  }} onPointerUp={() => { drag.current = null; }}>
-    <div className="m12-flow-scaled-space" style={{ width: width * zoom, height: height * zoom }}><div className="m12-flow-world" style={{ width, height, transform: `scale(${zoom})` }}>
+    <div ref={canvasRef} className={`m3-flow-canvas ${panning ? "is-panning" : ""}`} onPointerDown={(event) => {
+      const interactive = (event.target as Element).closest(".m3-flow-card, .flow-edge-label, button, input");
+      if ((event.button !== 0 || interactive) && event.button !== 1) return;
+      const canvas = event.currentTarget;
+      pan.current = { startX: event.clientX, startY: event.clientY, scrollLeft: canvas.scrollLeft, scrollTop: canvas.scrollTop };
+      setPanning(true); canvas.setPointerCapture?.(event.pointerId); event.preventDefault();
+    }} onPointerMove={(event) => {
+      if (pan.current) {
+        event.currentTarget.scrollLeft = pan.current.scrollLeft - (event.clientX - pan.current.startX);
+        event.currentTarget.scrollTop = pan.current.scrollTop - (event.clientY - pan.current.startY);
+        return;
+      }
+      if (!drag.current) return;
+      onMove(drag.current.id, { x: drag.current.x + (event.clientX - drag.current.startX) / zoom, y: drag.current.y + (event.clientY - drag.current.startY) / zoom });
+    }} onPointerUp={() => { drag.current = null; pan.current = null; setPanning(false); }} onPointerCancel={() => { drag.current = null; pan.current = null; setPanning(false); }}>
+    <div className="m12-flow-scaled-space" style={{ width: (width + margin * 2) * zoom, height: (height + margin * 2) * zoom }}><div className="m12-flow-world" style={{ width, height, left: margin * zoom, top: margin * zoom, transform: `scale(${zoom})` }}>
     <svg className="m3-connections" style={{ width, height }}>
       <defs><marker id="flowArrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 Z" fill="#6f772f" /></marker></defs>
       {project.connections.map((connection: any) => {
@@ -299,12 +338,12 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
     </svg>
     {project.sceneOrder.map((id: string, index: number) => {
       const scene = project.scenes[id];
-      return <div key={id} className={`m3-flow-card ${id === activeSceneId ? "active" : ""} ${id === connectionFrom ? "connecting" : ""}`} style={{ left: scene.overview.x, top: scene.overview.y }} onPointerDown={(event) => { if ((event.target as Element).closest("button")) return; drag.current = { id, x: scene.overview.x, y: scene.overview.y, startX: event.clientX, startY: event.clientY }; onSelect(id); }}>
+      return <div key={id} className={`m3-flow-card ${id === activeSceneId ? "active" : ""} ${id === connectionFrom ? "connecting" : ""}`} style={{ left: scene.overview.x, top: scene.overview.y }} onPointerDown={(event) => { if ((event.target as Element).closest("button")) return; drag.current = { id, x: scene.overview.x, y: scene.overview.y, startX: event.clientX, startY: event.clientY }; event.currentTarget.setPointerCapture?.(event.pointerId); onSelect(id); }}>
         <span className="flow-card-index">{String(index + 1).padStart(2, "0")}</span><div className="flow-card-preview"><SceneThumbnail scene={scene} /></div><b>{scene.name}</b><small>{scene.layers.length} layers · {scene.annotations.length} notes</small>
         <div><button onClick={() => onStartConnection(id)}>起點</button>{connectionFrom && connectionFrom !== id && <button className="connect-target" onClick={() => onConnect(id)}>連到這裡</button>}</div>
       </div>;
     })}
-    <div className="m3-flow-hint">拖曳 Scene 排列流程；工具列可縮放或自動整理。先按「起點」，再按另一張卡片的「連到這裡」。</div>
+    <div className="m3-flow-hint">拖曳空白處平移畫布；拖曳 Scene 排列流程。先按「起點」，再按另一張卡片的「連到這裡」。</div>
     </div></div>
   </div></div>;
 }
@@ -324,8 +363,13 @@ export function SlotBoardEditor() {
   const [clipboardCount, setClipboardCount] = useState(0);
   const [setupMode, setSetupMode] = useState<"project" | "scene" | null>(null);
   const [setupDraft, setSetupDraft] = useState({ name: "SlotBoard 專案", preset: "landscape-work", width: 960, height: 540, template: "basic" });
+  const [scenePan, setScenePan] = useState({ x: 0, y: 0 });
+  const [scenePanning, setScenePanning] = useState(false);
+  const [spaceHeld, setSpaceHeld] = useState(false);
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
+  const scenePanRef = useRef<any>(null);
+  const spaceHeldRef = useRef(false);
   const layerClipboardRef = useRef<any[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const packageInputRef = useRef<HTMLInputElement>(null);
@@ -337,6 +381,19 @@ export function SlotBoardEditor() {
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  useEffect(() => {
+    const updateSpace = (event: KeyboardEvent, held: boolean) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.matches("input, textarea, select, [contenteditable='true']") || event.code !== "Space") return;
+      spaceHeldRef.current = held; setSpaceHeld(held);
+      if (held) event.preventDefault();
+    };
+    const down = (event: KeyboardEvent) => updateSpace(event, true);
+    const up = (event: KeyboardEvent) => updateSpace(event, false);
+    window.addEventListener("keydown", down); window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+  }, []);
 
   useEffect(() => {
     if (!contextMenu) return;
@@ -472,11 +529,15 @@ export function SlotBoardEditor() {
     const target = event.target as Element;
     const handle = target.getAttribute?.("data-handle");
     const mode = handle === "resize" ? "resize" : handle === "rotate" ? "rotate" : "move";
+    const svg = (event.currentTarget as SVGGElement).ownerSVGElement;
+    const startPoint = svg ? svgClientPoint(svg, event.clientX, event.clientY) : { x: event.clientX, y: event.clientY };
     dragRef.current = {
       id,
       mode,
       startX: event.clientX,
       startY: event.clientY,
+      startCanvasX: startPoint.x,
+      startCanvasY: startPoint.y,
       baseHistory: historyRef.current,
       baseTransform: structuredClone(layer.transform),
       latest: historyRef.current.present,
@@ -487,8 +548,11 @@ export function SlotBoardEditor() {
 
   function startAnnotationDrag(event: any, annotation: any) {
     event.preventDefault(); event.stopPropagation();
+    const svg = (event.currentTarget as SVGElement).ownerSVGElement;
+    const startPoint = svg ? svgClientPoint(svg, event.clientX, event.clientY) : { x: event.clientX, y: event.clientY };
     dragRef.current = {
       id: annotation.id, mode: "annotation", startX: event.clientX, startY: event.clientY,
+      startCanvasX: startPoint.x, startCanvasY: startPoint.y,
       baseHistory: historyRef.current, basePosition: { x: annotation.x, y: annotation.y }, latest: historyRef.current.present, moved: false,
     };
     (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
@@ -497,11 +561,10 @@ export function SlotBoardEditor() {
   function pointerMove(event: any) {
     const drag = dragRef.current;
     if (!drag) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const annotationPlaneWidth = scene.width + 420;
-    const scale = annotationPlaneWidth / rect.width;
-    const dx = (event.clientX - drag.startX) * scale;
-    const dy = (event.clientY - drag.startY) * scale;
+    const svg = event.currentTarget as SVGSVGElement;
+    const point = svgClientPoint(svg, event.clientX, event.clientY);
+    const dx = point.x - drag.startCanvasX;
+    const dy = point.y - drag.startCanvasY;
     if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
     drag.moved = true;
     if (drag.mode === "annotation") {
@@ -547,8 +610,8 @@ export function SlotBoardEditor() {
       } else {
         const cx = drag.baseTransform.x + drag.baseTransform.width / 2;
         const cy = drag.baseTransform.y + drag.baseTransform.height / 2;
-        const px = (event.clientX - rect.left) * scale;
-        const py = (event.clientY - rect.top) * scale;
+        const px = point.x;
+        const py = point.y;
         let rotation = Math.round(Math.atan2(py - cy, px - cx) * 180 / Math.PI + 90);
         if (event.shiftKey) rotation = Math.round(rotation / 90) * 90;
         layer.transform.rotation = ((rotation % 360) + 360) % 360;
@@ -564,6 +627,26 @@ export function SlotBoardEditor() {
     if (drag.moved) setHistory(commitHistory(drag.baseHistory, drag.latest));
     dragRef.current = null;
     setGuides({});
+  }
+
+  function startScenePan(event: any) {
+    const emptyStage = event.target === event.currentTarget;
+    const canvasSurface = Boolean((event.target as Element).closest?.("[data-pan-surface='true'], [data-layer-locked='true']"));
+    if (event.button !== 1 && !(event.button === 0 && (spaceHeldRef.current || emptyStage || canvasSurface))) return;
+    event.preventDefault(); event.stopPropagation(); setContextMenu(null);
+    if (emptyStage && event.button === 0) setSelectedIds([]);
+    scenePanRef.current = { startX: event.clientX, startY: event.clientY, x: scenePan.x, y: scenePan.y };
+    setScenePanning(true); event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function moveScenePan(event: any) {
+    const pan = scenePanRef.current;
+    if (!pan) return;
+    setScenePan({ x: pan.x + event.clientX - pan.startX, y: pan.y + event.clientY - pan.startY });
+  }
+
+  function endScenePan() {
+    scenePanRef.current = null; setScenePanning(false);
   }
 
   function downloadPsd() {
@@ -768,12 +851,12 @@ export function SlotBoardEditor() {
             <button disabled={!selectedLayer || selectedLayer.type === "group"} onClick={() => imageInputRef.current?.click()}><b>▧</b><small>換圖片</small></button>
             <input ref={imageInputRef} className="visually-hidden" type="file" accept="image/*" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
           </div>
-          <div className={`m1-stage-wrap ${project.editorSettings.pixelGrid ? "pixel-grid" : ""}`} onPointerDown={(event) => { if (event.target === event.currentTarget) setSelectedIds([]); setContextMenu(null); }} onContextMenu={(event) => openContextMenu(event)}>
-            <div className="m3-editor-plane m11-editor-plane">
-            <svg className="m1-canvas m11-annotation-canvas" viewBox={`0 0 ${scene.width + 420} ${scene.height}`} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label={`${scene.name} 編輯畫布與標註`}>
+          <div className={`m1-stage-wrap ${project.editorSettings.pixelGrid ? "pixel-grid" : ""} ${scenePanning ? "is-panning" : ""} ${spaceHeld ? "pan-ready" : ""}`} onPointerDownCapture={startScenePan} onPointerMove={moveScenePan} onPointerUp={endScenePan} onPointerCancel={endScenePan} onContextMenu={(event) => openContextMenu(event)}>
+            <div className="m3-editor-plane m11-editor-plane" style={{ transform: `translate(${scenePan.x}px, ${scenePan.y}px)` }}>
+            <svg className="m1-canvas m11-annotation-canvas" style={{ aspectRatio: `${scene.width + 420} / ${scene.height}` }} viewBox={`0 0 ${scene.width + 420} ${scene.height}`} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label={`${scene.name} 編輯畫布與標註`}>
               <defs><marker id="arrowhead" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#f2f2ed" /></marker></defs>
-              <rect width={scene.width} height={scene.height} fill="#31322f" />
-              <rect x={scene.width} width={420} height={scene.height} fill="#eceee8" />
+              <rect data-pan-surface="true" width={scene.width} height={scene.height} fill="#31322f" />
+              <rect data-pan-surface="true" x={scene.width} width={420} height={scene.height} fill="#eceee8" />
               {[...scene.layers].reverse().map((layer: any) => <LayerVisual key={layer.id} layer={layer} assets={{ ...project.assets, __symbols: project.symbols }} selectedIds={selectedIds} onSelect={selectLayer} onContextMenu={openContextMenu} />)}
               {project.editorSettings.guides && guides.x !== undefined && <line x1={guides.x} x2={guides.x} y1={0} y2={scene.height} stroke="#d9ff43" strokeWidth={1} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
               {project.editorSettings.guides && guides.y !== undefined && <line x1={0} x2={scene.width} y1={guides.y} y2={guides.y} stroke="#d9ff43" strokeWidth={1} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
@@ -796,7 +879,7 @@ export function SlotBoardEditor() {
             <button className="m11-add-note" onClick={() => commit(addAnnotation(project, activeSceneId, "新增標註", selectedLayer?.id ?? null))}>＋ SCENE 標註{selectedLayer ? `：${selectedLayer.name}` : ""}</button>
             </div>
           </div>
-          <footer className="m1-statusbar"><span>Scene {sceneIndex + 1}/{project.sceneOrder.length}</span><span>{flattenedCount} 個圖層</span><span>{scene.width} × {scene.height}px</span><button className={project.editorSettings.snap ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { snap: !project.editorSettings.snap }))}>吸附</button><button className={project.editorSettings.guides ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { guides: !project.editorSettings.guides }))}>參考線</button><button className={project.editorSettings.pixelGrid ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { pixelGrid: !project.editorSettings.pixelGrid }))}>像素格</button></footer>
+          <footer className="m1-statusbar"><span>Scene {sceneIndex + 1}/{project.sceneOrder.length}</span><span>{flattenedCount} 個圖層</span><span>{scene.width} × {scene.height}px</span><button className={project.editorSettings.snap ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { snap: !project.editorSettings.snap }))}>吸附</button><button className={project.editorSettings.guides ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { guides: !project.editorSettings.guides }))}>參考線</button><button className={project.editorSettings.pixelGrid ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { pixelGrid: !project.editorSettings.pixelGrid }))}>像素格</button><button onClick={() => setScenePan({ x: 0, y: 0 })}>畫布置中</button><span className="m1-tip">空白處拖曳，或按住 Space／中鍵平移</span></footer>
           </> : <FlowOverview project={project} activeSceneId={activeSceneId} connectionFrom={connectionFrom} zoom={project.editorSettings.flowZoom ?? 1} onZoom={(flowZoom: number) => commit(updateEditorSettings(project, { flowZoom: Math.round(flowZoom * 10) / 10 }))} onAutoArrange={() => { if (window.confirm("自動整理會重新排列所有 Scene，連線內容不會改變。確定繼續？")) commit(autoArrangeScenes(project)); }} onSelect={setActiveSceneId} onStartConnection={(id: string) => setConnectionFrom(id)} onConnect={(id: string) => { if (connectionFrom) commit(addConnection(project, connectionFrom, id)); setConnectionFrom(null); }} onMove={(id: string, position: any) => commit(updateSceneOverview(project, id, position))} onUpdateConnection={(id: string, label: string) => commit(updateConnection(project, id, { label }))} onRemoveConnection={(id: string) => commit(removeConnection(project, id))} />}
         </section>
 

@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 
 const projectRoot = resolve(".");
 const outputRoot = resolve(projectRoot, "dist");
+const { version } = JSON.parse(await readFile(resolve(projectRoot, "package.json"), "utf8"));
 if (!outputRoot.startsWith(`${projectRoot}\\`) && !outputRoot.startsWith(`${projectRoot}/`)) {
   throw new Error("Refusing to clear an output directory outside the project");
 }
@@ -42,8 +43,8 @@ await cp(resolve(projectRoot, "public"), outputRoot, { recursive: true });
 const sourceHtml = await readFile(resolve(projectRoot, "index.html"), "utf8");
 const outputHtml = sourceHtml.replace(
   '<script type="module" src="/src/main.tsx"></script>',
-  '<link rel="stylesheet" href="./assets/app.css" />\n    <script type="module" src="./assets/app.js"></script>',
+  `<link rel="stylesheet" href="./assets/app.css?v=${version}" />\n    <script type="module" src="./assets/app.js?v=${version}"></script>`,
 );
 await writeFile(resolve(outputRoot, "index.html"), outputHtml, "utf8");
 
-console.log("Built SlotBoard M15 editor in dist/");
+console.log("Built SlotBoard M17 editor in dist/");

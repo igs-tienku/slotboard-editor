@@ -9,6 +9,8 @@ test("build emits the GitHub Pages-compatible application", async () => {
   ]);
   assert.match(html, /<title>SlotBoard 分鏡編輯器<\/title>/i);
   assert.match(html, /\.\/assets\//);
+  assert.match(html, /app\.js\?v=0\.17\.0/);
+  assert.match(html, /app\.css\?v=0\.17\.0/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
@@ -78,6 +80,11 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /背景處理/);
   assert.match(editor, /estimateExportWorkingSet/);
   assert.match(editor, /預估 PSD 峰值/);
+  assert.match(editor, /getScreenCTM/);
+  assert.match(editor, /startScenePan/);
+  assert.match(editor, /scrollLeft/);
+  assert.match(editor, /按住 Space／中鍵平移/);
+  assert.match(editor, /aspectRatio/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);
