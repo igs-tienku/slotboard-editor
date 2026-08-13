@@ -11,6 +11,14 @@ test("build emits the GitHub Pages-compatible application", async () => {
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
 });
 
+test("Pages workflow gates deployment on the complete test suite", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/pages.yml", import.meta.url), "utf8");
+  assert.match(workflow, /npm run test/);
+  assert.match(workflow, /actions\/upload-pages-artifact@v3/);
+  assert.match(workflow, /actions\/deploy-pages@v4/);
+  assert.match(workflow, /needs: build/);
+});
+
 test("M6.1 editor keeps safe transforms, context actions and production exports available", async () => {
   const [editor, entry, packageJson] = await Promise.all([
     readFile(new URL("../app/editor.tsx", import.meta.url), "utf8"),
