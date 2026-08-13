@@ -1,9 +1,11 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { SlotBoardEditor } from "../app/editor";
+import { loadBuiltInFonts } from "../lib/builtin-fonts.js";
 import "../app/globals.css";
 
-function renderApplication() {
+async function renderApplication() {
+  await loadBuiltInFonts();
   const root = document.getElementById("root");
   if (!root) throw new Error("Missing #root mount point");
   createRoot(root).render(

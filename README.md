@@ -1,6 +1,6 @@
 # SlotBoard 分鏡編輯器
 
-此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成並部署的 M1–M16 編輯器。
+此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成並部署的 M1–M17 編輯器。
 
 - 正式網站：https://igs-tienku.github.io/slotboard-editor/
 - 公開原始碼：https://github.com/igs-tienku/slotboard-editor
@@ -20,7 +20,7 @@
 - 畫布／多物件對齊、等距分布、智慧吸附、參考線及像素格線
 - 圖片容量驗證、超標縮小副本、原地置換、contain／cover、焦點及重設
 - IndexedDB 大型恢復草稿，保留圖片與裁切設定
-- 文字內容、三類 Noto 開源字型、字級字重、行距字距、對齊、外框及底色
+- 文字內容、隨產品提供的三類 Noto OFL-1.1 開源字型、字級字重、行距字距、對齊、外框及底色
 - 可變軸數及逐軸列數的 Reel Grid，含 5×3 與 3-4-4-4-3 等結構
 - 專案級 Symbol 定義，可跨 Scene 引用並同步改名／改色／換圖
 - 可拖曳 Scene 的流程總覽、自由文字連線、分支及迴圈
@@ -132,6 +132,15 @@ npm run test
 - 每個 PSD 圖層會裁掉透明邊界，仍保留正確的 `left／top／right／bottom` 與群組結構。
 - 輸出視窗會顯示圖層數、素材量與 PSD 峰值工作記憶體估算，超過 512 MB 時顯示警示。
 - 自動壓測包含 8 Scene × 50 圖層真實 Canvas 渲染，以及 3 Scene × 18 圖層的 PSD ZIP、PDF 實際產生；目前 30 秒測試預算內通過。
+
+## M17 閉環品質補強
+
+- Scene 與流程畫布的雙軸拖曳共用可測試的座標演算法；輕點不會誤判成拖曳。
+- 流程 Scene 卡片拖曳只在放開時建立一筆復原歷史，單次 Undo 可回到拖曳前位置。
+- Scene 複製與 `.slottemplate` 匯入會重映射圖層、標註、Symbol 與素材 ID，不覆寫目標專案。
+- ZIP 在實際解壓前先檢查宣告檔案數與解壓大小。
+- Noto Sans TC、Noto Serif TC 與 Noto Sans Mono 的必要 WOFF2 子集隨產品提供，主畫面與 Worker 輸出共用相同字型載入器。
+- 完整閉環審核資料位於 `output/review/project-quality-audit-2026-08-13/`；Chrome／Edge、Photoshop 與效率案例仍依 `docs/M6-QA.md` 人工驗收。
 
 測試會完成 TypeScript 檢查、GitHub Pages 相容打包、重新產生 PSD，並驗證尺寸、中文圖層名稱、巢狀群組、順序、隱藏狀態及透明度。
 

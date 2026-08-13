@@ -1,5 +1,6 @@
 import * as agPsd from "ag-psd";
 import { createProjectPdf, createPsdZip, createScenePsd } from "../lib/export-engine.js";
+import { loadBuiltInFonts } from "../lib/builtin-fonts.js";
 
 (globalThis as any).agPsd = agPsd;
 
@@ -25,6 +26,7 @@ async function resizeImage(dataUrl: string, width: number, height: number) {
 self.onmessage = async (event: MessageEvent) => {
   const { id, action, payload } = event.data;
   try {
+    if (action !== "resizeImage") await loadBuiltInFonts();
     let bytes: Uint8Array | null = null, result: any = null;
     if (action === "scenePsd") bytes = await createScenePsd(payload.project, payload.sceneId);
     else if (action === "psdZip") bytes = await createPsdZip(payload.project);

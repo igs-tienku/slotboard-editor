@@ -9,12 +9,15 @@ test("build emits the GitHub Pages-compatible application", async () => {
   ]);
   assert.match(html, /<title>SlotBoard 分鏡編輯器<\/title>/i);
   assert.match(html, /\.\/assets\//);
-  assert.match(html, /app\.js\?v=0\.17\.1/);
-  assert.match(html, /app\.css\?v=0\.17\.1/);
+  assert.match(html, /app\.js\?v=0\.18\.0/);
+  assert.match(html, /app\.css\?v=0\.18\.0/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
   await access(new URL("../dist/vendor/ag-psd.bundle.js", import.meta.url));
+  await access(new URL("../dist/fonts/noto-sans-tc-400.woff2", import.meta.url));
+  await access(new URL("../dist/fonts/noto-serif-tc-400.woff2", import.meta.url));
+  await access(new URL("../dist/fonts/noto-sans-mono-400.woff2", import.meta.url));
   assert.match(application, /vendor\/ag-psd\.bundle\.js/);
   assert.doesNotMatch(application, /import\.meta\.env/, "production bundle must not retain Vite-only runtime globals");
 });
@@ -87,8 +90,8 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /按住 Space／中鍵平移/);
   assert.match(editor, /aspectRatio/);
   assert.match(editor, /buildPrototypePsd/);
-  assert.match(editor, /onMoveStart={startFlowMove}/);
-  assert.match(editor, /onMovePreview={previewFlowMove}/);
+  assert.match(editor, /onMoveStart=\{startFlowMove\}/);
+  assert.match(editor, /onMovePreview=\{previewFlowMove\}/);
   assert.match(editor, /commitHistory\(move\.baseHistory, move\.latest\)/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);

@@ -1,5 +1,14 @@
 # Third-party notices
 
+## Noto fonts
+
+SlotBoard distributes selected WOFF2 subsets of Noto Sans TC, Noto Serif TC and Noto Sans Mono so editor and export rendering do not depend on fonts installed on the user's computer.
+
+- Source: https://github.com/notofonts
+- Packaging source: Fontsource 5.3.0
+- License: SIL Open Font License 1.1
+- Included license text: `public/fonts/OFL-1.1.txt`
+
 ## ag-psd
 
 SlotBoard includes a browser bundle of `ag-psd` for reading and writing Adobe Photoshop PSD files.
