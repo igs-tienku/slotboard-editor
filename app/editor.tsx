@@ -13,6 +13,7 @@ import {
   alignLayers,
   assignReelSymbol,
   commitHistory,
+  copyLayerSelection,
   createHistory,
   createId,
   createProject,
@@ -23,6 +24,7 @@ import {
   groupLayers,
   importSceneTemplate,
   locateLayerInScene,
+  pasteLayerSelection,
   projectAssetBytes,
   redoHistory,
   removeAnnotation,
@@ -278,8 +280,10 @@ export function SlotBoardEditor() {
   const [exportBusy, setExportBusy] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string | null } | null>(null);
+  const [clipboardCount, setClipboardCount] = useState(0);
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
+  const layerClipboardRef = useRef<any[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const packageInputRef = useRef<HTMLInputElement>(null);
 
@@ -331,6 +335,32 @@ export function SlotBoardEditor() {
       }
       if (!editing && event.key === "Escape") { setSelectedIds([]); setShowExport(false); setContextMenu(null); return; }
       if (editing || !(event.ctrlKey || event.metaKey)) return;
+      if (event.key.toLowerCase() === "c" && selectedIds.length) {
+        event.preventDefault();
+        layerClipboardRef.current = copyLayerSelection(historyRef.current.present, activeSceneId, selectedIds);
+        setClipboardCount(layerClipboardRef.current.length);
+        setNotice(`已複製 ${layerClipboardRef.current.length} 個物件，可切換 Scene 後貼上`);
+        return;
+      }
+      if (event.key.toLowerCase() === "v" && layerClipboardRef.current.length) {
+        event.preventDefault();
+        setHistory((current: any) => {
+          const result = pasteLayerSelection(current.present, activeSceneId, layerClipboardRef.current);
+          setSelectedIds(result.layerIds);
+          return commitHistory(current, result.project);
+        });
+        return;
+      }
+      if (event.key.toLowerCase() === "d" && selectedIds.length) {
+        event.preventDefault();
+        setHistory((current: any) => {
+          const copied = copyLayerSelection(current.present, activeSceneId, selectedIds);
+          const result = pasteLayerSelection(current.present, activeSceneId, copied);
+          setSelectedIds(result.layerIds);
+          return commitHistory(current, result.project);
+        });
+        return;
+      }
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
         setHistory((current: any) => event.shiftKey ? redoHistory(current) : undoHistory(current));
@@ -567,7 +597,7 @@ export function SlotBoardEditor() {
   function openContextMenu(event: any, layerId: string | null = null) {
     event.preventDefault(); event.stopPropagation();
     if (layerId && !selectedIds.includes(layerId)) setSelectedIds([layerId]);
-    setContextMenu({ x: Math.min(event.clientX, window.innerWidth - 190), y: Math.min(event.clientY, window.innerHeight - 260), layerId });
+    setContextMenu({ x: Math.min(event.clientX, window.innerWidth - 190), y: Math.min(event.clientY, window.innerHeight - 420), layerId });
   }
 
   function contextAction(action: string) {
@@ -578,6 +608,11 @@ export function SlotBoardEditor() {
     if (layerId && action === "locate") commit(locateLayerInScene(project, activeSceneId, layerId));
     if (layerId && action === "front") commit(reorderLayer(project, activeSceneId, layerId, "front"));
     if (layerId && action === "back") commit(reorderLayer(project, activeSceneId, layerId, "back"));
+    if (layerId && action === "up") commit(reorderLayer(project, activeSceneId, layerId, "up"));
+    if (layerId && action === "down") commit(reorderLayer(project, activeSceneId, layerId, "down"));
+    if (layerId && action === "copy") { layerClipboardRef.current = copyLayerSelection(project, activeSceneId, selectedIds.includes(layerId) ? selectedIds : [layerId]); setClipboardCount(layerClipboardRef.current.length); setNotice(`已複製 ${layerClipboardRef.current.length} 個物件`); }
+    if (layerId && action === "duplicate") { const copied = copyLayerSelection(project, activeSceneId, selectedIds.includes(layerId) ? selectedIds : [layerId]); const result = pasteLayerSelection(project, activeSceneId, copied); commit(result.project); setSelectedIds(result.layerIds); }
+    if (action === "paste" && layerClipboardRef.current.length) { const result = pasteLayerSelection(project, activeSceneId, layerClipboardRef.current); commit(result.project); setSelectedIds(result.layerIds); }
     if (layerId && action === "replace") imageInputRef.current?.click();
     if (layerId && action === "delete") { commit(removeLayers(project, activeSceneId, [layerId])); setSelectedIds([]); }
     setContextMenu(null);
@@ -728,7 +763,12 @@ export function SlotBoardEditor() {
       {contextMenu && <div className="m6-context-menu" role="menu" style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={(event) => event.stopPropagation()}>
         {contextMenu.layerId ? <>
           <button role="menuitem" onClick={() => contextAction("locate")}>找回畫面中央</button>
+          <button role="menuitem" onClick={() => contextAction("copy")}>複製物件 Ctrl+C</button>
+          <button role="menuitem" onClick={() => contextAction("duplicate")}>建立複本 Ctrl+D</button>
+          <button role="menuitem" disabled={!clipboardCount} onClick={() => contextAction("paste")}>貼上 Ctrl+V</button>
           <button role="menuitem" onClick={() => contextAction("front")}>移到最上層</button>
+          <button role="menuitem" onClick={() => contextAction("up")}>向上移一層</button>
+          <button role="menuitem" onClick={() => contextAction("down")}>向下移一層</button>
           <button role="menuitem" onClick={() => contextAction("back")}>移到最下層</button>
           {(findLayer(scene.layers, contextMenu.layerId) as any)?.type !== "group" && <button role="menuitem" onClick={() => contextAction("replace")}>置換成圖片…</button>}
           <hr />
@@ -736,6 +776,7 @@ export function SlotBoardEditor() {
         </> : <>
           <button role="menuitem" onClick={() => contextAction("addRectangle")}>新增矩形</button>
           <button role="menuitem" onClick={() => contextAction("addText")}>新增文字</button>
+          <button role="menuitem" disabled={!clipboardCount} onClick={() => contextAction("paste")}>貼上物件 Ctrl+V</button>
           <button role="menuitem" onClick={() => contextAction("addScene")}>新增 Scene</button>
         </>}
       </div>}

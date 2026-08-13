@@ -11,18 +11,21 @@ import {
   alignLayers,
   assignReelSymbol,
   commitHistory,
+  copyLayerSelection,
   createHistory,
   createProject,
   deserializeProject,
   duplicateScene,
   groupLayers,
   projectAssetBytes,
+  pasteLayerSelection,
   redoHistory,
   replaceLayerWithImage,
   replaceSymbolImage,
   resetImagePlaceholder,
   resetSymbolImage,
   renameScene,
+  reorderLayer,
   reorderScene,
   serializeProject,
   undoHistory,
@@ -108,6 +111,36 @@ test("scene rename, reorder and duplicate preserve stable source data", () => {
   assert.equal(duplicated.project.scenes[second.sceneId].name, "Scatter 觸發");
   assert.equal(duplicated.project.scenes[duplicated.sceneId].name, "Scatter 觸發 複本");
   assert.notEqual(duplicated.sceneId, second.sceneId);
+});
+
+test("layer clipboard crosses scenes, renews nested ids and supports step ordering", () => {
+  let project = createProject();
+  const sourceSceneId = project.sceneOrder[0];
+  const target = addScene(project, "FG"); project = target.project;
+  project = addLayer(project, sourceSceneId, "ellipse");
+  project = addLayer(project, sourceSceneId, "triangle");
+  const sourceLayers = project.scenes[sourceSceneId].layers;
+  const clipboard = copyLayerSelection(project, sourceSceneId, [sourceLayers[0].id, sourceLayers[1].id]);
+  const pasted = pasteLayerSelection(project, target.sceneId, clipboard);
+  project = pasted.project;
+  assert.equal(pasted.layerIds.length, 2);
+  assert.deepEqual(project.scenes[target.sceneId].layers.slice(0, 2).map((layer) => layer.name), clipboard.map((layer) => `${layer.name} 複本`));
+  assert.equal(pasted.layerIds.every((id) => !clipboard.some((layer) => layer.id === id)), true);
+
+  const before = project.scenes[target.sceneId].layers.map((layer) => layer.id);
+  project = reorderLayer(project, target.sceneId, before[1], "up");
+  assert.deepEqual(project.scenes[target.sceneId].layers.slice(0, 2).map((layer) => layer.id), [before[1], before[0]]);
+  project = reorderLayer(project, target.sceneId, before[1], "down");
+  assert.deepEqual(project.scenes[target.sceneId].layers.slice(0, 2).map((layer) => layer.id), [before[0], before[1]]);
+
+  const grouped = groupLayers(project, sourceSceneId, [sourceLayers[0].id, sourceLayers[1].id]);
+  project = grouped.project;
+  const groupClipboard = copyLayerSelection(project, sourceSceneId, [grouped.groupId]);
+  const pastedGroup = pasteLayerSelection(project, target.sceneId, groupClipboard, 40);
+  const newGroup = pastedGroup.project.scenes[target.sceneId].layers.find((layer) => layer.id === pastedGroup.layerIds[0]);
+  assert.equal(newGroup.type, "group");
+  assert.notEqual(newGroup.id, groupClipboard[0].id);
+  assert.deepEqual(newGroup.children.map((layer) => layer.id).some((id) => groupClipboard[0].children.some((source) => source.id === id)), false);
 });
 
 test("shape edits, grouping and undo redo are reversible", () => {
@@ -196,7 +229,8 @@ test("locate and layer-order commands recover off-canvas objects", async () => {
   assert.ok(located.transform.x >= 0 && located.transform.x + located.transform.width <= project.scenes[sceneId].width);
   assert.ok(located.transform.y >= 0 && located.transform.y + located.transform.height <= project.scenes[sceneId].height);
   project = reorderLayer(project, sceneId, layerId, "back");
-  assert.equal(project.scenes[sceneId].layers.at(-1).id, layerId);
+  assert.equal(project.scenes[sceneId].layers.at(-2).id, layerId);
+  assert.equal(project.scenes[sceneId].layers.at(-1).name, "背景");
   project = reorderLayer(project, sceneId, layerId, "front");
   assert.equal(project.scenes[sceneId].layers[0].id, layerId);
 });

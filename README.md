@@ -1,6 +1,6 @@
 # SlotBoard 分鏡編輯器
 
-此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M8 編輯器。
+此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M9 編輯器。
 
 ## 已完成
 
@@ -80,6 +80,13 @@ npm run test
 - Symbol 圖片沿用單張 20 MB／8192px、專案 200 MB 與超標縮小副本規則。
 - 可移除圖片回到灰階 placeholder；不再引用的舊圖片會從專案資產庫清除。
 - Scene 畫布、PSD 與 PDF 共用同一套 contain／cover 與焦點資料，PSD 像素 round-trip 已納入自動測試。
+
+## M9 跨 Scene 剪貼簿與圖層排序
+
+- Ctrl+C／Ctrl+V 可在不同 Scene 間複製貼上物件；Ctrl+D 可在目前 Scene 建立複本。
+- 群組貼上會替群組與所有子物件產生新 ID，避免後續編輯互相干擾。
+- 右鍵選單提供複製、貼上、建立複本、逐層上移／下移及最上／最下層。
+- 貼上位置會偏移並限制在 Scene 內；背景防呆仍保證全畫布背景位於最下層。
 
 測試會完成 TypeScript 檢查、GitHub Pages 相容打包、重新產生 PSD，並驗證尺寸、中文圖層名稱、巢狀群組、順序、隱藏狀態及透明度。
 

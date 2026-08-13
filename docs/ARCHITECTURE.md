@@ -301,6 +301,8 @@ project.slotboard
 
 補完紀錄（2026-08-13）：Symbol 定義已支援專案資產引用、圖片換置、移除與孤兒素材清理。Reel Grid 的編輯畫布、Scene PSD 與 PDF 均從同一 Symbol registry 解析圖片；跨 Scene 保存與 PSD 像素輸出已有自動測試。
 
+補完紀錄（2026-08-13）：已加入應用內物件剪貼簿，支援跨 Scene 複製貼上、同 Scene 建立複本、巢狀 ID 更新，以及圖層逐層上移／下移。鍵盤與右鍵選單共用相同模型命令。
+
 ### M4：可攜專案與模板（已完成）
 
 - `.slotboard` 匯出／匯入。
