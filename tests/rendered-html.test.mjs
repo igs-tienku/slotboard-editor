@@ -3,12 +3,18 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("build emits the GitHub Pages-compatible application", async () => {
-  const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
+  const [html, application] = await Promise.all([
+    readFile(new URL("../dist/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../dist/assets/app.js", import.meta.url), "utf8"),
+  ]);
   assert.match(html, /<title>SlotBoard 分鏡編輯器<\/title>/i);
   assert.match(html, /\.\/assets\//);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
+  await access(new URL("../dist/vendor/ag-psd.bundle.js", import.meta.url));
+  assert.match(application, /vendor\/ag-psd\.bundle\.js/);
+  assert.doesNotMatch(application, /import\.meta\.env/, "production bundle must not retain Vite-only runtime globals");
 });
 
 test("Pages workflow gates deployment on the complete test suite", async () => {

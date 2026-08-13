@@ -14,7 +14,7 @@ function renderApplication() {
 }
 
 const psdRuntime = document.createElement("script");
-psdRuntime.src = `${import.meta.env.BASE_URL}vendor/ag-psd.bundle.js`;
+psdRuntime.src = new URL("./vendor/ag-psd.bundle.js", document.baseURI).href;
 psdRuntime.onload = renderApplication;
 psdRuntime.onerror = () => {
   throw new Error("Unable to load the PSD runtime");
