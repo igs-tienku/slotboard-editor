@@ -9,8 +9,8 @@ test("build emits the GitHub Pages-compatible application", async () => {
   ]);
   assert.match(html, /<title>SlotBoard 分鏡編輯器<\/title>/i);
   assert.match(html, /\.\/assets\//);
-  assert.match(html, /app\.js\?v=0\.17\.0/);
-  assert.match(html, /app\.css\?v=0\.17\.0/);
+  assert.match(html, /app\.js\?v=0\.17\.1/);
+  assert.match(html, /app\.css\?v=0\.17\.1/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
@@ -28,10 +28,11 @@ test("Pages workflow gates deployment on the complete test suite", async () => {
 });
 
 test("M6.1 editor keeps safe transforms, context actions and production exports available", async () => {
-  const [editor, entry, packageJson] = await Promise.all([
+  const [editor, entry, packageJson, css] = await Promise.all([
     readFile(new URL("../app/editor.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/main.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(editor, /SlotBoardEditor/);
@@ -88,4 +89,7 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);
+  assert.match(css, /\.m1-center\s*\{[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
+  assert.match(css, /\.m3-flow-shell\s*\{[^}]*height:\s*100%[^}]*overflow:\s*hidden/s);
+  assert.match(css, /\.m3-flow-canvas\s*\{[^}]*height:\s*0[^}]*overflow:\s*auto/s);
 });
