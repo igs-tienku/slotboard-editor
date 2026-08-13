@@ -25,6 +25,7 @@ import {
   groupLayers,
   importSceneTemplate,
   locateLayerInScene,
+  makeEditableCopy,
   moveAnnotation,
   pasteLayerSelection,
   projectAssetBytes,
@@ -350,13 +351,14 @@ export function SlotBoardEditor() {
     const handleKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const editing = target?.matches("input, textarea, select, [contenteditable='true']");
+      if (!editing && event.key === "Escape") { setSelectedIds([]); setShowExport(false); setContextMenu(null); return; }
+      if (historyRef.current.present.compatibility?.readOnly) return;
       if (!editing && (event.key === "Delete" || event.key === "Backspace") && selectedIds.length) {
         event.preventDefault();
         setHistory((current: any) => commitHistory(current, removeLayers(current.present, activeSceneId, selectedIds)));
         setSelectedIds([]);
         return;
       }
-      if (!editing && event.key === "Escape") { setSelectedIds([]); setShowExport(false); setContextMenu(null); return; }
       if (editing || !(event.ctrlKey || event.metaKey)) return;
       if (event.key.toLowerCase() === "c" && selectedIds.length) {
         event.preventDefault();
@@ -406,7 +408,16 @@ export function SlotBoardEditor() {
   }, [scene.layers]);
 
   function commit(nextProject: any) {
+    if (project.compatibility?.readOnly) { setNotice("此專案來自較新的 schema，目前為唯讀；請先建立可編輯副本"); return; }
     setHistory((current: any) => commitHistory(current, nextProject));
+  }
+
+  function convertReadonlyCopy() {
+    const next = makeEditableCopy(project);
+    setHistory(createHistory(next)); setActiveSceneId(next.sceneOrder[0]); setSelectedIds([]);
+    const result = createProjectPackage(next);
+    downloadBytes(result.bytes, result.fileName);
+    setNotice(`已建立並匯出可編輯副本：${result.fileName}`);
   }
 
   function openSetup(mode: "project" | "scene") {
@@ -677,7 +688,7 @@ export function SlotBoardEditor() {
   }
 
   return (
-    <main className="m1-shell">
+    <main className={`m1-shell ${project.compatibility?.readOnly ? "m13-readonly" : ""}`}>
       <header className="m1-topbar">
         <div className="m1-brand"><span>SB</span><div><small>SLOTBOARD · M2</small><b>{project.name}</b></div></div>
         <div className="m1-history">
@@ -689,6 +700,8 @@ export function SlotBoardEditor() {
         </div>
         <div className="m1-actions"><button className="secondary" onClick={() => openSetup("project")}>新建</button><button className="secondary" onClick={() => packageInputRef.current?.click()}>開啟</button><button className="secondary" onClick={exportProject}>儲存</button><button className="secondary" onClick={exportTemplate}>模板</button><button className="secondary" onClick={() => setShowExport(true)}>輸出</button><input className="visually-hidden" ref={packageInputRef} type="file" accept=".slotboard,.slottemplate" onChange={(event) => { void importPackage(event.target.files?.[0]); event.target.value = ""; }} /></div>
       </header>
+
+      {project.compatibility?.readOnly && <div className="m13-readonly-banner" role="status"><b>唯讀模式</b><span>此檔案使用 schema v{project.compatibility.sourceSchemaVersion}，目前版本支援至 v3。你可以檢視與輸出，但不能直接修改。</span><button onClick={convertReadonlyCopy}>另存可編輯副本</button></div>}
 
       <div className="m1-workspace">
         <aside className="m1-scenes">

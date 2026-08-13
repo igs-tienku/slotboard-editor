@@ -55,6 +55,9 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /autoArrangeScenes/);
   assert.match(editor, /m12-flow-toolbar/);
   assert.match(editor, /自動整理會重新排列/);
+  assert.match(editor, /makeEditableCopy/);
+  assert.match(editor, /唯讀模式/);
+  assert.match(editor, /另存可編輯副本/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);

@@ -18,6 +18,7 @@ import {
   deserializeProject,
   duplicateScene,
   groupLayers,
+  makeEditableCopy,
   moveAnnotation,
   projectAssetBytes,
   pasteLayerSelection,
@@ -248,6 +249,21 @@ test("text, alignment and schema v1 migration use M2 defaults", () => {
   assert.equal(migrated.schemaVersion, 3);
   assert.equal(migrated.editorSettings.snap, true);
   assert.equal(migrated.fonts.length, 3);
+});
+
+test("future schema opens read-only and can create a current editable copy", () => {
+  const future = createProject("未來版本");
+  future.schemaVersion = 99;
+  future.futureOnlyField = { preserved: true };
+  const opened = deserializeProject(JSON.stringify(future));
+  assert.equal(opened.compatibility.readOnly, true);
+  assert.equal(opened.compatibility.sourceSchemaVersion, 99);
+  assert.equal(opened.futureOnlyField.preserved, true);
+  const editable = makeEditableCopy(opened);
+  assert.equal(editable.schemaVersion, 3);
+  assert.equal(editable.compatibility, undefined);
+  assert.match(editable.name, /可編輯副本/);
+  assert.notEqual(editable.id, opened.id);
 });
 
 test("removing selected layers also clears annotations anchored to them", async () => {
