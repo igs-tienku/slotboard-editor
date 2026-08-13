@@ -14,8 +14,8 @@ test("export filenames are ordered, Windows-safe and collision-free", () => {
   assert.equal(sanitizeExportName("A/B\\C"), "A_B_C");
 });
 
-test("PSD order preserves artwork order while forcing full-canvas background to the bottom", () => {
+test("PSD writer order reverses artwork while keeping full-canvas background visually at the bottom", () => {
   const transform = { x: 0, y: 0, width: 960, height: 540 };
   const editorLayers = [{ name: "Foreground", transform }, { name: "背景", transform }, { name: "Content", transform }];
-  assert.deepEqual(psdLayerSequence(editorLayers, { width: 960, height: 540 }).map((layer) => layer.name), ["Foreground", "Content", "背景"]);
+  assert.deepEqual(psdLayerSequence(editorLayers, { width: 960, height: 540 }).map((layer) => layer.name), ["背景", "Content", "Foreground"]);
 });

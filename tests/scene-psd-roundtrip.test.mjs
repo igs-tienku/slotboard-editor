@@ -55,7 +55,9 @@ test("real Scene PSD preserves transformed group pixels, opacity and background 
   const parsed = agPsd.readPsd(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), {
     skipThumbnail: true, skipCompositeImageData: true, useImageData: true,
   });
-  assert.deepEqual(parsed.children.map((layer) => layer.name), ["移動旋轉群組", "背景"]);
+  // ag-psd reads its written record order back unchanged; Krita displays that
+  // order in reverse, so the background must be first in the writer input.
+  assert.deepEqual(parsed.children.map((layer) => layer.name), ["背景", "移動旋轉群組"]);
   const parsedGroup = findLayer(parsed.children, "移動旋轉群組"), parsedChild = findLayer(parsed.children, "群組內物件");
   assert.ok(parsedGroup && parsedChild?.imageData);
   assert.ok(Math.abs(parsedGroup.opacity - 0.6) < 0.01);
@@ -105,7 +107,7 @@ test("Scene PSD renders with an OffscreenCanvas-style worker surface", async () 
     const bytes = await createScenePsd(project, sceneId);
     const parsed = agPsd.readPsd(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), { skipThumbnail: true, skipCompositeImageData: true, useImageData: true });
     assert.equal(parsed.width, project.scenes[sceneId].width);
-    assert.equal(parsed.children.at(-1).name, "背景");
+    assert.equal(parsed.children.at(0).name, "背景");
   } finally {
     globalThis.document = originalDocument;
     globalThis.OffscreenCanvas = originalOffscreenCanvas;
