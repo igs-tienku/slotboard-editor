@@ -38,6 +38,7 @@ import {
   reorderScene,
   resetImagePlaceholder,
   resetSymbolImage,
+  SCENE_SIZE_PRESETS,
   serializeProject,
   undoHistory,
   ungroupLayer,
@@ -281,6 +282,8 @@ export function SlotBoardEditor() {
   const [showExport, setShowExport] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string | null } | null>(null);
   const [clipboardCount, setClipboardCount] = useState(0);
+  const [setupMode, setSetupMode] = useState<"project" | "scene" | null>(null);
+  const [setupDraft, setSetupDraft] = useState({ name: "SlotBoard 專案", preset: "landscape-work", width: 960, height: 540, template: "basic" });
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
   const layerClipboardRef = useRef<any[]>([]);
@@ -384,6 +387,25 @@ export function SlotBoardEditor() {
 
   function commit(nextProject: any) {
     setHistory((current: any) => commitHistory(current, nextProject));
+  }
+
+  function openSetup(mode: "project" | "scene") {
+    const size = mode === "project" ? project.defaultSceneSize : { width: scene.width, height: scene.height };
+    setSetupDraft({ name: mode === "project" ? "SlotBoard 專案" : `Scene ${String(project.sceneOrder.length + 1).padStart(2, "0")}`, preset: "custom", width: size.width, height: size.height, template: mode === "project" ? "basic" : "blank" });
+    setSetupMode(mode);
+  }
+
+  function applySetup() {
+    const size = { width: Math.max(320, Math.min(8192, Number(setupDraft.width))), height: Math.max(320, Math.min(8192, Number(setupDraft.height))) };
+    if (setupMode === "project") {
+      if ((project.sceneOrder.length > 1 || flattenedCount > 2) && !window.confirm("建立新專案會取代目前工作內容。確定繼續？")) return;
+      const next = createProject(setupDraft.name.trim() || "SlotBoard 專案", size, setupDraft.template);
+      setHistory(createHistory(next)); setActiveSceneId(next.sceneOrder[0]); setSelectedIds([]); setViewMode("scene");
+    } else {
+      const result = addScene(project, setupDraft.name, { size, template: setupDraft.template });
+      commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]);
+    }
+    setSetupMode(null);
   }
 
   function selectLayer(event: any, id: string) {
@@ -602,7 +624,7 @@ export function SlotBoardEditor() {
 
   function contextAction(action: string) {
     const layerId = contextMenu?.layerId ?? selectedIds[0] ?? null;
-    if (action === "addScene") { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }
+    if (action === "addScene") openSetup("scene");
     if (action === "addRectangle") { const next = addLayer(project, activeSceneId, "rectangle"); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }
     if (action === "addText") { const next = addTextLayer(project, activeSceneId); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }
     if (layerId && action === "locate") commit(locateLayerInScene(project, activeSceneId, layerId));
@@ -629,12 +651,12 @@ export function SlotBoardEditor() {
           <button className={viewMode === "flow" ? "mode-active" : ""} onClick={() => setViewMode("flow")}>流程</button>
           <span>{recoveryReady ? "自動儲存開啟" : "載入草稿…"}</span>
         </div>
-        <div className="m1-actions"><button className="secondary" onClick={() => packageInputRef.current?.click()}>開啟</button><button className="secondary" onClick={exportProject}>儲存</button><button className="secondary" onClick={exportTemplate}>模板</button><button className="secondary" onClick={() => setShowExport(true)}>輸出</button><input className="visually-hidden" ref={packageInputRef} type="file" accept=".slotboard,.slottemplate" onChange={(event) => { void importPackage(event.target.files?.[0]); event.target.value = ""; }} /></div>
+        <div className="m1-actions"><button className="secondary" onClick={() => openSetup("project")}>新建</button><button className="secondary" onClick={() => packageInputRef.current?.click()}>開啟</button><button className="secondary" onClick={exportProject}>儲存</button><button className="secondary" onClick={exportTemplate}>模板</button><button className="secondary" onClick={() => setShowExport(true)}>輸出</button><input className="visually-hidden" ref={packageInputRef} type="file" accept=".slotboard,.slottemplate" onChange={(event) => { void importPackage(event.target.files?.[0]); event.target.value = ""; }} /></div>
       </header>
 
       <div className="m1-workspace">
         <aside className="m1-scenes">
-          <div className="m1-panel-title"><span>SCENES</span><button className="m6-add-scene" onClick={() => { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }}>＋ Scene</button><b>{project.sceneOrder.length}</b></div>
+          <div className="m1-panel-title"><span>SCENES</span><button className="m6-add-scene" onClick={() => openSetup("scene")}>＋ Scene</button><b>{project.sceneOrder.length}</b></div>
           <div className="m1-scene-list">
             {project.sceneOrder.map((id: string, index: number) => {
               const item = project.scenes[id];
@@ -733,7 +755,7 @@ export function SlotBoardEditor() {
               </div>}
               {selectedLayer.type === "reelGrid" && <div className="m2-special-panel m3-reel-panel">
                 <div className="m1-panel-title"><span>REEL GRID</span><b>{selectedLayer.columns.length} 軸</b></div>
-                <div className="m3-reel-actions"><button onClick={() => commit(addReelColumn(project, activeSceneId, selectedLayer.id))}>＋軸</button><button onClick={() => commit(removeReelColumn(project, activeSceneId, selectedLayer.id))}>－軸</button><button onClick={() => { const next = addReelGridLayer(project, activeSceneId, [3,4,4,4,3]); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}>3-4-4-4-3 預設</button></div>
+                <div className="m3-reel-actions"><button onClick={() => commit(addReelColumn(project, activeSceneId, selectedLayer.id))}>＋軸</button><button onClick={() => commit(removeReelColumn(project, activeSceneId, selectedLayer.id))}>－軸</button><button onClick={() => { const next = addReelGridLayer(project, activeSceneId, [4,4,4,4,4,4]); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}>6×4 預設</button><button onClick={() => { const next = addReelGridLayer(project, activeSceneId, [3,4,4,4,3]); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}>3-4-4-4-3</button></div>
                 <div className="m3-column-list">{selectedLayer.columns.map((column: any[], columnIndex: number) => <div key={columnIndex} className="m3-column-item"><label>第 {columnIndex + 1} 軸<input type="number" min="1" max="12" value={column.length} onChange={(event) => commit(updateReelColumn(project, activeSceneId, selectedLayer.id, columnIndex, Number(event.target.value)))} /></label><div>{column.map((symbolId, rowIndex) => <select key={rowIndex} value={symbolId ?? ""} onChange={(event) => commit(assignReelSymbol(project, activeSceneId, selectedLayer.id, columnIndex, rowIndex, event.target.value || null))}><option value="">Placeholder</option>{Object.values(project.symbols).map((symbol: any) => <option key={symbol.id} value={symbol.id}>{symbol.name}</option>)}</select>)}</div></div>)}</div>
               </div>}
             </> : <p className="empty-properties">選取畫布或圖層中的物件，即可精確調整位置與尺寸。</p>}
@@ -781,6 +803,18 @@ export function SlotBoardEditor() {
         </>}
       </div>}
       {notice && <button className="m2-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
+      {setupMode && <div className="m5-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) setSetupMode(null); }}>
+        <section className="m5-export-modal m10-setup-modal" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+          <div className="m5-modal-head"><div><small>{setupMode === "project" ? "NEW PROJECT" : "NEW SCENE"}</small><h2 id="setup-title">{setupMode === "project" ? "建立新專案" : "新增 Scene"}</h2></div><button aria-label="關閉設定視窗" onClick={() => setSetupMode(null)}>×</button></div>
+          <div className="m10-setup-body">
+            <label><span>{setupMode === "project" ? "專案名稱" : "Scene 名稱"}</span><input value={setupDraft.name} onChange={(event) => setSetupDraft({ ...setupDraft, name: event.target.value })} /></label>
+            <label><span>尺寸預設</span><select value={setupDraft.preset} onChange={(event) => { const preset = (SCENE_SIZE_PRESETS as any)[event.target.value]; setSetupDraft({ ...setupDraft, preset: event.target.value, ...(preset ? { width: preset.width, height: preset.height } : {}) }); }}><option value="custom">自訂尺寸</option>{Object.entries(SCENE_SIZE_PRESETS).map(([id, preset]: any) => <option key={id} value={id}>{preset.name} · {preset.width}×{preset.height}</option>)}</select></label>
+            <div className="m10-size-row"><label><span>寬度 px</span><input type="number" min="320" max="8192" value={setupDraft.width} onChange={(event) => setSetupDraft({ ...setupDraft, preset: "custom", width: Number(event.target.value) })} /></label><button title="交換寬高" onClick={() => setSetupDraft({ ...setupDraft, preset: "custom", width: setupDraft.height, height: setupDraft.width })}>⇄</button><label><span>高度 px</span><input type="number" min="320" max="8192" value={setupDraft.height} onChange={(event) => setSetupDraft({ ...setupDraft, preset: "custom", height: Number(event.target.value) })} /></label></div>
+            <fieldset><legend>起始模板</legend><div className="m10-template-grid">{[["blank","空白"],["basic","基本盤面"],["reel","Reel Grid 5×3"]].map(([id, label]) => <button key={id} className={setupDraft.template === id ? "active" : ""} onClick={() => setSetupDraft({ ...setupDraft, template: id })}><i>{id === "blank" ? "□" : id === "basic" ? "▣" : "▦"}</i><b>{label}</b></button>)}</div></fieldset>
+          </div>
+          <div className="m10-setup-actions"><button onClick={() => setSetupMode(null)}>取消</button><button className="primary" onClick={applySetup}>{setupMode === "project" ? "建立專案" : "新增 Scene"}</button></div>
+        </section>
+      </div>}
       {showExport && <div className="m5-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !exportBusy) setShowExport(false); }}><section className="m5-export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="m5-modal-head"><div><small>EXPORT PREVIEW</small><h2 id="export-title">正式輸出</h2></div><button aria-label="關閉輸出視窗" onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress" role="status">正在逐層光柵化與封裝，請勿關閉頁面…</p>}</section></div>}
     </main>
   );

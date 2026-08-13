@@ -50,6 +50,24 @@ test("30 scenes survive serialize and reload without data loss", () => {
   for (const sceneId of restored.sceneOrder) assert.equal(restored.scenes[sceneId].layers.length >= 2, true);
 });
 
+test("project sizes and built-in Scene templates create correctly scaled starting content", () => {
+  const portrait = createProject("直版企劃", { width: 1080, height: 1920 }, "blank");
+  const portraitScene = portrait.scenes[portrait.sceneOrder[0]];
+  assert.deepEqual(portrait.defaultSceneSize, { width: 1080, height: 1920 });
+  assert.equal(portraitScene.layers.length, 1);
+  assert.equal(portraitScene.layers[0].name, "背景");
+  assert.deepEqual({ width: portraitScene.layers[0].transform.width, height: portraitScene.layers[0].transform.height }, { width: 1080, height: 1920 });
+
+  const reel = addScene(portrait, "6×4 測試", { size: { width: 1366, height: 1024 }, template: "reel" });
+  const reelScene = reel.project.scenes[reel.sceneId];
+  assert.equal(reelScene.width, 1366);
+  assert.equal(reelScene.layers[0].type, "reelGrid");
+  assert.deepEqual(reelScene.layers[0].columns.map((column) => column.length), [3, 3, 3, 3, 3]);
+
+  const clamped = createProject("尺寸防呆", { width: 10, height: 99999 }, "basic");
+  assert.deepEqual(clamped.defaultSceneSize, { width: 320, height: 8192 });
+});
+
 test("variable reel grids and project symbols stay linked across scenes", () => {
   let project = createProject();
   const firstScene = project.sceneOrder[0];

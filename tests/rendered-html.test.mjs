@@ -45,6 +45,10 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /copyLayerSelection/);
   assert.match(editor, /貼上物件/);
   assert.match(editor, /向上移一層/);
+  assert.match(editor, /SCENE_SIZE_PRESETS/);
+  assert.match(editor, /建立新專案/);
+  assert.match(editor, /Reel Grid 5×3/);
+  assert.match(editor, /6×4 預設/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);
