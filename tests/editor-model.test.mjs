@@ -17,6 +17,7 @@ import {
   deserializeProject,
   duplicateScene,
   groupLayers,
+  moveAnnotation,
   projectAssetBytes,
   pasteLayerSelection,
   redoHistory,
@@ -110,11 +111,13 @@ test("flow positions, branching connections and anchored annotations persist", (
   project = addAnnotation(project, first, "背景需要更暗", targetLayerId);
   const annotationId = project.scenes[first].annotations[0].id;
   project = updateAnnotation(project, first, annotationId, { x: 1080, y: 160 });
+  project = moveAnnotation(project, first, annotationId, { x: 99999, y: -80 });
   const restored = deserializeProject(serializeProject(project));
   assert.deepEqual(restored.scenes[first].overview, { x: 80, y: 120 });
   assert.equal(restored.connections.length, 2);
   assert.equal(restored.scenes[first].annotations[0].targetLayerId, targetLayerId);
-  assert.equal(restored.scenes[first].annotations[0].x, 1080);
+  assert.equal(restored.scenes[first].annotations[0].x, restored.scenes[first].width + 170);
+  assert.equal(restored.scenes[first].annotations[0].y, 0);
 });
 
 test("scene rename, reorder and duplicate preserve stable source data", () => {

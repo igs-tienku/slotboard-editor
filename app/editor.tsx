@@ -24,6 +24,7 @@ import {
   groupLayers,
   importSceneTemplate,
   locateLayerInScene,
+  moveAnnotation,
   pasteLayerSelection,
   projectAssetBytes,
   redoHistory,
@@ -242,6 +243,18 @@ function SceneThumbnail({ scene }: { scene: any }) {
   return <svg className="m3-scene-thumbnail" viewBox={`0 0 ${scene.width} ${scene.height}`}><rect width={scene.width} height={scene.height} fill="#3f403c" />{render(scene.layers)}</svg>;
 }
 
+function layerCenter(layers: any[], targetId: string, offsetX = 0, offsetY = 0): { x: number; y: number } | null {
+  for (const layer of layers) {
+    const x = offsetX + layer.transform.x, y = offsetY + layer.transform.y;
+    if (layer.id === targetId) return { x: x + layer.transform.width / 2, y: y + layer.transform.height / 2 };
+    if (layer.children) {
+      const nested = layerCenter(layer.children, targetId, x, y);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
 function FlowOverview({ project, activeSceneId, connectionFrom, onSelect, onStartConnection, onConnect, onMove, onUpdateConnection, onRemoveConnection }: any) {
   const drag = useRef<any>(null);
   return <div className="m3-flow-canvas" onPointerMove={(event) => {
@@ -434,15 +447,31 @@ export function SlotBoardEditor() {
     (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
   }
 
+  function startAnnotationDrag(event: any, annotation: any) {
+    event.preventDefault(); event.stopPropagation();
+    dragRef.current = {
+      id: annotation.id, mode: "annotation", startX: event.clientX, startY: event.clientY,
+      baseHistory: historyRef.current, basePosition: { x: annotation.x, y: annotation.y }, latest: historyRef.current.present, moved: false,
+    };
+    (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+  }
+
   function pointerMove(event: any) {
     const drag = dragRef.current;
     if (!drag) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const scale = scene.width / rect.width;
+    const annotationPlaneWidth = scene.width + 420;
+    const scale = annotationPlaneWidth / rect.width;
     const dx = (event.clientX - drag.startX) * scale;
     const dy = (event.clientY - drag.startY) * scale;
     if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
     drag.moved = true;
+    if (drag.mode === "annotation") {
+      const next = moveAnnotation(drag.baseHistory.present, activeSceneId, drag.id, { x: drag.basePosition.x + dx, y: drag.basePosition.y + dy });
+      drag.latest = next;
+      setHistory({ ...drag.baseHistory, present: next });
+      return;
+    }
     const next = updateLayer(drag.baseHistory.present, activeSceneId, drag.id, (layer: any) => {
       if (drag.mode === "move") {
         let x = Math.round(drag.baseTransform.x + dx);
@@ -688,15 +717,31 @@ export function SlotBoardEditor() {
             <input ref={imageInputRef} className="visually-hidden" type="file" accept="image/*" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
           </div>
           <div className={`m1-stage-wrap ${project.editorSettings.pixelGrid ? "pixel-grid" : ""}`} onPointerDown={(event) => { if (event.target === event.currentTarget) setSelectedIds([]); setContextMenu(null); }} onContextMenu={(event) => openContextMenu(event)}>
-            <div className="m3-editor-plane">
-            <svg className="m1-canvas" viewBox={`0 0 ${scene.width} ${scene.height}`} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label={`${scene.name} 編輯畫布`}>
+            <div className="m3-editor-plane m11-editor-plane">
+            <svg className="m1-canvas m11-annotation-canvas" viewBox={`0 0 ${scene.width + 420} ${scene.height}`} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label={`${scene.name} 編輯畫布與標註`}>
               <defs><marker id="arrowhead" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#f2f2ed" /></marker></defs>
               <rect width={scene.width} height={scene.height} fill="#31322f" />
+              <rect x={scene.width} width={420} height={scene.height} fill="#eceee8" />
               {[...scene.layers].reverse().map((layer: any) => <LayerVisual key={layer.id} layer={layer} assets={{ ...project.assets, __symbols: project.symbols }} selectedIds={selectedIds} onSelect={selectLayer} onContextMenu={openContextMenu} />)}
               {project.editorSettings.guides && guides.x !== undefined && <line x1={guides.x} x2={guides.x} y1={0} y2={scene.height} stroke="#d9ff43" strokeWidth={1} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
               {project.editorSettings.guides && guides.y !== undefined && <line x1={0} x2={scene.width} y1={guides.y} y2={guides.y} stroke="#d9ff43" strokeWidth={1} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
+              {scene.annotations.map((annotation: any) => {
+                const target = annotation.targetLayerId ? layerCenter(scene.layers, annotation.targetLayerId) : null;
+                return target ? <g key={`line_${annotation.id}`} className="m11-annotation-link" pointerEvents="none"><line x1={target.x} y1={target.y} x2={annotation.x} y2={annotation.y + 18} /><circle cx={target.x} cy={target.y} r={7} /></g> : null;
+              })}
+              {scene.annotations.map((annotation: any, index: number) => {
+                const target: any = annotation.targetLayerId ? findLayer(scene.layers, annotation.targetLayerId) : null;
+                return <foreignObject key={annotation.id} x={annotation.x} y={annotation.y} width={240} height={112} className="m11-note-object">
+                  <div className="m3-note m11-note">
+                    <button className="m11-note-handle" title="拖曳標註" onPointerDown={(event) => startAnnotationDrag(event, annotation)}>{index + 1}</button>
+                    <textarea value={annotation.text} onChange={(event) => commit(updateAnnotation(project, activeSceneId, annotation.id, { text: event.target.value }))} />
+                    <small>{annotation.targetLayerId ? `連到：${target?.name ?? "已刪除圖層"}` : "Scene 整體備註"}</small>
+                    <button className="m11-note-delete" onClick={() => commit(removeAnnotation(project, activeSceneId, annotation.id))}>刪除</button>
+                  </div>
+                </foreignObject>;
+              })}
             </svg>
-            <aside className="m3-annotations"><div className="m3-annotation-head"><b>SCENE 標註</b><button onClick={() => commit(addAnnotation(project, activeSceneId, "新增標註", selectedLayer?.id ?? null))}>＋</button></div>{scene.annotations.map((annotation: any, index: number) => { const target: any = annotation.targetLayerId ? findLayer(scene.layers, annotation.targetLayerId) : null; return <div className="m3-note" key={annotation.id}><span>{index + 1}</span><textarea value={annotation.text} onChange={(event) => commit(updateAnnotation(project, activeSceneId, annotation.id, { text: event.target.value }))} /><small>{annotation.targetLayerId ? `連到：${target?.name ?? "已刪除圖層"}` : "Scene 整體備註"}</small><button onClick={() => commit(removeAnnotation(project, activeSceneId, annotation.id))}>刪除</button></div>; })}</aside>
+            <button className="m11-add-note" onClick={() => commit(addAnnotation(project, activeSceneId, "新增標註", selectedLayer?.id ?? null))}>＋ SCENE 標註{selectedLayer ? `：${selectedLayer.name}` : ""}</button>
             </div>
           </div>
           <footer className="m1-statusbar"><span>Scene {sceneIndex + 1}/{project.sceneOrder.length}</span><span>{flattenedCount} 個圖層</span><span>{scene.width} × {scene.height}px</span><button className={project.editorSettings.snap ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { snap: !project.editorSettings.snap }))}>吸附</button><button className={project.editorSettings.guides ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { guides: !project.editorSettings.guides }))}>參考線</button><button className={project.editorSettings.pixelGrid ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { pixelGrid: !project.editorSettings.pixelGrid }))}>像素格</button></footer>
