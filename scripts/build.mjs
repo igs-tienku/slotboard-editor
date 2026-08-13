@@ -33,4 +33,4 @@ const outputHtml = sourceHtml.replace(
 );
 await writeFile(resolve(outputRoot, "index.html"), outputHtml, "utf8");
 
-console.log("Built SlotBoard M2 editor in dist/");
+console.log("Built SlotBoard M3 editor in dist/");

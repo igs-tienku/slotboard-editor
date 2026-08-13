@@ -15,7 +15,6 @@ await writeFile(resolve(outputDirectory, PROTOTYPE_FILE_NAME), bytes);
 await writeFile(
   resolve(outputDirectory, "verification.json"),
   `${JSON.stringify({
-    generatedAt: new Date().toISOString(),
     fileName: PROTOTYPE_FILE_NAME,
     byteLength: bytes.byteLength,
     checks: result.checks,

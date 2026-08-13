@@ -10,7 +10,7 @@ test("build emits the GitHub Pages-compatible application", async () => {
   await access(new URL("../dist/assets/", import.meta.url));
 });
 
-test("M2 editor keeps image, text, alignment and PSD controls available", async () => {
+test("M3 editor keeps reel, symbol, flow, annotation and PSD controls available", async () => {
   const [editor, entry, packageJson] = await Promise.all([
     readFile(new URL("../app/editor.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/main.tsx", import.meta.url), "utf8"),
@@ -23,6 +23,10 @@ test("M2 editor keeps image, text, alignment and PSD controls available", async 
   assert.match(editor, /replaceLayerWithImage/);
   assert.match(editor, /alignLayers/);
   assert.match(editor, /addTextLayer/);
+  assert.match(editor, /addReelGridLayer/);
+  assert.match(editor, /FlowOverview/);
+  assert.match(editor, /PROJECT SYMBOLS/);
+  assert.match(editor, /SCENE 標註/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);

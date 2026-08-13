@@ -3,9 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   addLayer,
+  addAnnotation,
+  addConnection,
+  addReelColumn,
+  addReelGridLayer,
   addScene,
+  addSymbol,
   addTextLayer,
   alignLayers,
+  assignReelSymbol,
   commitHistory,
   createHistory,
   createId,
@@ -17,6 +23,9 @@ import {
   groupLayers,
   projectAssetBytes,
   redoHistory,
+  removeAnnotation,
+  removeConnection,
+  removeReelColumn,
   replaceLayerWithImage,
   renameScene,
   reorderScene,
@@ -25,7 +34,12 @@ import {
   undoHistory,
   ungroupLayer,
   updateEditorSettings,
+  updateAnnotation,
+  updateConnection,
   updateLayer,
+  updateReelColumn,
+  updateSceneOverview,
+  updateSymbol,
 } from "../lib/editor-model.js";
 import { loadRecoveryProject, saveRecoveryProject } from "../lib/recovery-storage.js";
 import { buildPrototypePsd, PROTOTYPE_FILE_NAME } from "../lib/psd-prototype.js";
@@ -131,6 +145,26 @@ function TextVisual({ layer }: { layer: any }) {
   </>;
 }
 
+function ReelGridVisual({ layer, symbols }: { layer: any; symbols: any }) {
+  const { width, height } = layer.transform;
+  const columnWidth = (width - layer.gap * (layer.columns.length + 1)) / layer.columns.length;
+  return <>
+    <rect width={width} height={height} rx={7} fill="#252622" stroke={layer.frameColor} strokeWidth={3} />
+    {layer.columns.map((column: any[], columnIndex: number) => {
+      const cellHeight = (height - layer.gap * (column.length + 1)) / column.length;
+      return column.map((symbolId, rowIndex) => {
+        const symbol = symbolId ? symbols[symbolId] : null;
+        const x = layer.gap + columnIndex * (columnWidth + layer.gap);
+        const y = layer.gap + rowIndex * (cellHeight + layer.gap);
+        return <g key={`${columnIndex}_${rowIndex}`}>
+          <rect x={x} y={y} width={columnWidth} height={cellHeight} rx={4} fill={symbol?.color ?? layer.cellColor} stroke="#ffffff55" />
+          <text x={x + columnWidth / 2} y={y + cellHeight / 2 + 5} textAnchor="middle" fill="#292a27" fontSize={Math.min(18, cellHeight / 3)} fontWeight={800}>{symbol?.name?.slice(0, 4) ?? "＋"}</text>
+        </g>;
+      });
+    })}
+  </>;
+}
+
 function LayerVisual({ layer, assets, selectedIds, onSelect }: { layer: any; assets: any; selectedIds: string[]; onSelect: (event: any, id: string) => void }) {
   if (!layer.visible) return null;
   const transform = layer.transform;
@@ -142,7 +176,8 @@ function LayerVisual({ layer, assets, selectedIds, onSelect }: { layer: any; ass
       {layer.type === "group"
         ? layer.children.map((child: any) => <LayerVisual key={child.id} layer={child} assets={assets} selectedIds={selectedIds} onSelect={onSelect} />)
         : layer.type === "image" ? <ImageVisual layer={layer} asset={assets[layer.assetId]} />
-          : layer.type === "text" ? <TextVisual layer={layer} /> : <ShapeVisual layer={layer} />}
+          : layer.type === "text" ? <TextVisual layer={layer} />
+            : layer.type === "reelGrid" ? <ReelGridVisual layer={layer} symbols={assets.__symbols ?? {}} /> : <ShapeVisual layer={layer} />}
       {selectedIds.includes(layer.id) && (
         <g className="selection-box">
           <rect width={transform.width} height={transform.height} fill="none" stroke="#d9ff43" strokeWidth={2} vectorEffect="non-scaling-stroke" pointerEvents="none" />
@@ -161,12 +196,50 @@ function LayerTree({ layers, selectedIds, onSelect, onToggle, depth = 0 }: any) 
       <div className={`m1-layer-row ${selectedIds.includes(layer.id) ? "selected" : ""}`} style={{ paddingLeft: 12 + depth * 18 }} onClick={(event) => onSelect(event, layer.id)}>
         <button title={layer.visible ? "隱藏" : "顯示"} onClick={(event) => { event.stopPropagation(); onToggle(layer.id, "visible"); }}>{layer.visible ? "●" : "○"}</button>
         <span className="layer-kind">{layer.type === "group" ? "▣" : "◆"}</span>
-        <span className="layer-label"><b>{layer.name}</b><small>{layer.type === "group" ? `${layer.children.length} 個子圖層` : layer.type === "image" ? "圖片" : layer.type === "text" ? "文字" : layer.kind}</small></span>
+        <span className="layer-label"><b>{layer.name}</b><small>{layer.type === "group" ? `${layer.children.length} 個子圖層` : layer.type === "image" ? "圖片" : layer.type === "text" ? "文字" : layer.type === "reelGrid" ? `${layer.columns.length} 軸` : layer.kind}</small></span>
         <button title={layer.locked ? "解鎖" : "鎖定"} onClick={(event) => { event.stopPropagation(); onToggle(layer.id, "locked"); }}>{layer.locked ? "🔒" : "·"}</button>
       </div>
       {layer.type === "group" && layer.opened !== false && <LayerTree layers={layer.children} selectedIds={selectedIds} onSelect={onSelect} onToggle={onToggle} depth={depth + 1} />}
     </div>
   ));
+}
+
+function SceneThumbnail({ scene }: { scene: any }) {
+  const render = (layers: any[]): any[] => [...layers].reverse().flatMap((layer): any[] => {
+    if (!layer.visible) return [];
+    if (layer.type === "group") return render(layer.children);
+    const transform = layer.transform;
+    const fill = layer.type === "text" ? "#eeeeea" : layer.type === "image" ? "#b8c0aa" : layer.type === "reelGrid" ? "#777872" : layer.fill === "transparent" ? "#c8c9c4" : layer.fill;
+    return [<rect key={layer.id} x={transform.x} y={transform.y} width={transform.width} height={transform.height} fill={fill ?? "#aaa"} stroke={layer.stroke ?? "#ffffff55"} strokeWidth={Math.max(1, layer.strokeWidth ?? 1)} />];
+  });
+  return <svg className="m3-scene-thumbnail" viewBox={`0 0 ${scene.width} ${scene.height}`}><rect width={scene.width} height={scene.height} fill="#3f403c" />{render(scene.layers)}</svg>;
+}
+
+function FlowOverview({ project, activeSceneId, connectionFrom, onSelect, onStartConnection, onConnect, onMove, onUpdateConnection, onRemoveConnection }: any) {
+  const drag = useRef<any>(null);
+  return <div className="m3-flow-canvas" onPointerMove={(event) => {
+    if (!drag.current) return;
+    onMove(drag.current.id, { x: drag.current.x + event.clientX - drag.current.startX, y: drag.current.y + event.clientY - drag.current.startY });
+  }} onPointerUp={() => { drag.current = null; }}>
+    <svg className="m3-connections">
+      <defs><marker id="flowArrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 Z" fill="#6f772f" /></marker></defs>
+      {project.connections.map((connection: any) => {
+        const from = project.scenes[connection.fromSceneId]?.overview;
+        const to = project.scenes[connection.toSceneId]?.overview;
+        if (!from || !to) return null;
+        const x1 = from.x + 190, y1 = from.y + 62, x2 = to.x, y2 = to.y + 62;
+        return <g key={connection.id}><path d={`M${x1} ${y1} C${x1 + 70} ${y1}, ${x2 - 70} ${y2}, ${x2} ${y2}`} fill="none" stroke="#6f772f" strokeWidth="2" markerEnd="url(#flowArrow)" /><foreignObject x={(x1 + x2) / 2 - 55} y={(y1 + y2) / 2 - 18} width="110" height="36"><div className="flow-edge-label"><input value={connection.label} onChange={(event) => onUpdateConnection(connection.id, event.target.value)} /><button onClick={() => onRemoveConnection(connection.id)}>×</button></div></foreignObject></g>;
+      })}
+    </svg>
+    {project.sceneOrder.map((id: string, index: number) => {
+      const scene = project.scenes[id];
+      return <div key={id} className={`m3-flow-card ${id === activeSceneId ? "active" : ""} ${id === connectionFrom ? "connecting" : ""}`} style={{ left: scene.overview.x, top: scene.overview.y }} onPointerDown={(event) => { if ((event.target as Element).closest("button")) return; drag.current = { id, x: scene.overview.x, y: scene.overview.y, startX: event.clientX, startY: event.clientY }; onSelect(id); }}>
+        <span className="flow-card-index">{String(index + 1).padStart(2, "0")}</span><div className="flow-card-preview"><SceneThumbnail scene={scene} /></div><b>{scene.name}</b><small>{scene.layers.length} layers · {scene.annotations.length} notes</small>
+        <div><button onClick={() => onStartConnection(id)}>起點</button>{connectionFrom && connectionFrom !== id && <button className="connect-target" onClick={() => onConnect(id)}>連到這裡</button>}</div>
+      </div>;
+    })}
+    <div className="m3-flow-hint">拖曳 Scene 排列流程；先按「起點」，再按另一張卡片的「連到這裡」。流程可分支及迴圈。</div>
+  </div>;
 }
 
 export function SlotBoardEditor() {
@@ -176,6 +249,8 @@ export function SlotBoardEditor() {
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [guides, setGuides] = useState<{ x?: number; y?: number }>({});
   const [notice, setNotice] = useState("");
+  const [viewMode, setViewMode] = useState<"scene" | "flow">("scene");
+  const [connectionFrom, setConnectionFrom] = useState<string | null>(null);
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -361,6 +436,8 @@ export function SlotBoardEditor() {
         <div className="m1-history">
           <button onClick={() => setHistory((current: any) => undoHistory(current))} disabled={!history.past.length} title="復原 Ctrl+Z">↶</button>
           <button onClick={() => setHistory((current: any) => redoHistory(current))} disabled={!history.future.length} title="重做 Ctrl+Y">↷</button>
+          <button className={viewMode === "scene" ? "mode-active" : ""} onClick={() => setViewMode("scene")}>Scene</button>
+          <button className={viewMode === "flow" ? "mode-active" : ""} onClick={() => setViewMode("flow")}>流程</button>
           <span>{recoveryReady ? "自動儲存開啟" : "載入草稿…"}</span>
         </div>
         <div className="m1-actions"><button className="secondary" onClick={downloadPsd}>PSD 技術樣本</button><button className="accent" onClick={() => { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }}>＋ 新增 Scene</button></div>
@@ -374,7 +451,7 @@ export function SlotBoardEditor() {
               const item = project.scenes[id];
               return <button key={id} className={`m1-scene-item ${id === activeSceneId ? "active" : ""}`} onClick={() => { setActiveSceneId(id); setSelectedIds([]); }}>
                 <span className="m1-scene-index">{String(index + 1).padStart(2, "0")}</span>
-                <span className="m1-thumb"><i /><i /><i /><i /><i /><i /></span>
+                <span className="m1-thumb"><SceneThumbnail scene={item} /></span>
                 <span><b>{item.name}</b><small>{item.width} × {item.height}</small></span>
               </button>;
             })}
@@ -388,9 +465,11 @@ export function SlotBoardEditor() {
         </aside>
 
         <section className="m1-center">
+          {viewMode === "scene" ? <>
           <div className="m1-toolstrip">
             {tools.map(([kind, label, icon]) => <button key={kind} title={`新增${label}`} onClick={() => { const next = addLayer(project, activeSceneId, kind); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}><b>{icon}</b><small>{label}</small></button>)}
             <button title="新增文字" onClick={() => { const next = addTextLayer(project, activeSceneId); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}><b>T</b><small>文字</small></button>
+            <button title="新增 Reel Grid" onClick={() => { const next = addReelGridLayer(project, activeSceneId); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}><b>▦</b><small>Reel Grid</small></button>
             <span className="tool-divider" />
             <button disabled={selectedIds.length < 2} onClick={() => { const result = groupLayers(project, activeSceneId, selectedIds); commit(result.project); if (result.groupId) setSelectedIds([result.groupId]); }}><b>▣</b><small>群組</small></button>
             <button disabled={selectedLayer?.type !== "group"} onClick={() => { commit(ungroupLayer(project, activeSceneId, selectedLayer.id)); setSelectedIds([]); }}><b>▦</b><small>解散</small></button>
@@ -398,15 +477,19 @@ export function SlotBoardEditor() {
             <input ref={imageInputRef} className="visually-hidden" type="file" accept="image/*" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
           </div>
           <div className={`m1-stage-wrap ${project.editorSettings.pixelGrid ? "pixel-grid" : ""}`} onPointerDown={() => setSelectedIds([])}>
+            <div className="m3-editor-plane">
             <svg className="m1-canvas" viewBox={`0 0 ${scene.width} ${scene.height}`} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label={`${scene.name} 編輯畫布`}>
               <defs><marker id="arrowhead" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#f2f2ed" /></marker></defs>
               <rect width={scene.width} height={scene.height} fill="#31322f" />
-              {[...scene.layers].reverse().map((layer: any) => <LayerVisual key={layer.id} layer={layer} assets={project.assets} selectedIds={selectedIds} onSelect={selectLayer} />)}
+              {[...scene.layers].reverse().map((layer: any) => <LayerVisual key={layer.id} layer={layer} assets={{ ...project.assets, __symbols: project.symbols }} selectedIds={selectedIds} onSelect={selectLayer} />)}
               {project.editorSettings.guides && guides.x !== undefined && <line x1={guides.x} x2={guides.x} y1={0} y2={scene.height} stroke="#d9ff43" strokeWidth={1} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
               {project.editorSettings.guides && guides.y !== undefined && <line x1={0} x2={scene.width} y1={guides.y} y2={guides.y} stroke="#d9ff43" strokeWidth={1} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
             </svg>
+            <aside className="m3-annotations"><div className="m3-annotation-head"><b>SCENE 標註</b><button onClick={() => commit(addAnnotation(project, activeSceneId, "新增標註", selectedLayer?.id ?? null))}>＋</button></div>{scene.annotations.map((annotation: any, index: number) => { const target: any = annotation.targetLayerId ? findLayer(scene.layers, annotation.targetLayerId) : null; return <div className="m3-note" key={annotation.id}><span>{index + 1}</span><textarea value={annotation.text} onChange={(event) => commit(updateAnnotation(project, activeSceneId, annotation.id, { text: event.target.value }))} /><small>{annotation.targetLayerId ? `連到：${target?.name ?? "已刪除圖層"}` : "Scene 整體備註"}</small><button onClick={() => commit(removeAnnotation(project, activeSceneId, annotation.id))}>刪除</button></div>; })}</aside>
+            </div>
           </div>
           <footer className="m1-statusbar"><span>Scene {sceneIndex + 1}/{project.sceneOrder.length}</span><span>{flattenedCount} 個圖層</span><span>{scene.width} × {scene.height}px</span><button className={project.editorSettings.snap ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { snap: !project.editorSettings.snap }))}>吸附</button><button className={project.editorSettings.guides ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { guides: !project.editorSettings.guides }))}>參考線</button><button className={project.editorSettings.pixelGrid ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { pixelGrid: !project.editorSettings.pixelGrid }))}>像素格</button></footer>
+          </> : <FlowOverview project={project} activeSceneId={activeSceneId} connectionFrom={connectionFrom} onSelect={setActiveSceneId} onStartConnection={(id: string) => setConnectionFrom(id)} onConnect={(id: string) => { if (connectionFrom) commit(addConnection(project, connectionFrom, id)); setConnectionFrom(null); }} onMove={(id: string, position: any) => commit(updateSceneOverview(project, id, position))} onUpdateConnection={(id: string, label: string) => commit(updateConnection(project, id, { label }))} onRemoveConnection={(id: string) => commit(removeConnection(project, id))} />}
         </section>
 
         <aside className="m1-right">
@@ -443,8 +526,14 @@ export function SlotBoardEditor() {
                 <div className="m2-color-grid"><label>文字色<input type="color" value={selectedLayer.color} onChange={(event) => updateSelected("color", event.target.value)} /></label><label>外框色<input type="color" value={selectedLayer.textStroke} onChange={(event) => updateSelected("textStroke", event.target.value)} /></label><label>底色<input type="color" value={selectedLayer.background === "transparent" ? "#20211f" : selectedLayer.background} onChange={(event) => updateSelected("background", event.target.value)} /></label><label>外框<input type="number" min="0" max="16" value={selectedLayer.textStrokeWidth} onChange={(event) => updateSelected("textStrokeWidth", Number(event.target.value))} /></label></div>
                 <div className="m1-flips"><button className={selectedLayer.fontStyle === "italic" ? "active" : ""} onClick={() => updateSelected("fontStyle", selectedLayer.fontStyle === "italic" ? "normal" : "italic")}>斜體</button><button onClick={() => updateSelected("background", selectedLayer.background === "transparent" ? "#20211f" : "transparent")}>切換底色</button></div>
               </div>}
+              {selectedLayer.type === "reelGrid" && <div className="m2-special-panel m3-reel-panel">
+                <div className="m1-panel-title"><span>REEL GRID</span><b>{selectedLayer.columns.length} 軸</b></div>
+                <div className="m3-reel-actions"><button onClick={() => commit(addReelColumn(project, activeSceneId, selectedLayer.id))}>＋軸</button><button onClick={() => commit(removeReelColumn(project, activeSceneId, selectedLayer.id))}>－軸</button><button onClick={() => { const next = addReelGridLayer(project, activeSceneId, [3,4,4,4,3]); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}>3-4-4-4-3 預設</button></div>
+                <div className="m3-column-list">{selectedLayer.columns.map((column: any[], columnIndex: number) => <div key={columnIndex} className="m3-column-item"><label>第 {columnIndex + 1} 軸<input type="number" min="1" max="12" value={column.length} onChange={(event) => commit(updateReelColumn(project, activeSceneId, selectedLayer.id, columnIndex, Number(event.target.value)))} /></label><div>{column.map((symbolId, rowIndex) => <select key={rowIndex} value={symbolId ?? ""} onChange={(event) => commit(assignReelSymbol(project, activeSceneId, selectedLayer.id, columnIndex, rowIndex, event.target.value || null))}><option value="">Placeholder</option>{Object.values(project.symbols).map((symbol: any) => <option key={symbol.id} value={symbol.id}>{symbol.name}</option>)}</select>)}</div></div>)}</div>
+              </div>}
             </> : <p className="empty-properties">選取畫布或圖層中的物件，即可精確調整位置與尺寸。</p>}
           </section>
+          <section className="m3-symbol-panel"><div className="m1-panel-title"><span>PROJECT SYMBOLS</span><button onClick={() => { const result = addSymbol(project, `Symbol ${Object.keys(project.symbols).length + 1}`); commit(result.project); }}>＋ 新增</button></div>{Object.values(project.symbols).length ? Object.values(project.symbols).map((symbol: any) => <div className="m3-symbol-row" key={symbol.id}><input type="color" value={symbol.color} onChange={(event) => commit(updateSymbol(project, symbol.id, { color: event.target.value }))} /><input value={symbol.name} onChange={(event) => commit(updateSymbol(project, symbol.id, { name: event.target.value }))} /><small>{Object.values(project.scenes).reduce((count: number, item: any) => { let uses = 0; const visit = (layers: any[]) => layers.forEach((layer) => { if (layer.type === "reelGrid") layer.columns.flat().forEach((id: string) => { if (id === symbol.id) uses += 1; }); if (layer.children) visit(layer.children); }); visit(item.layers); return count + uses; }, 0)} 次引用</small></div>) : <p className="empty-properties">先新增專案 Symbol，再於 Reel Grid 的格子中引用；改名或改色會跨 Scene 同步。</p>}</section>
         </aside>
       </div>
       {notice && <button className="m2-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}

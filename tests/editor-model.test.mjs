@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   addLayer,
+  addAnnotation,
+  addConnection,
+  addReelGridLayer,
   addScene,
   addTextLayer,
+  addSymbol,
   alignLayers,
+  assignReelSymbol,
   commitHistory,
   createHistory,
   createProject,
@@ -19,7 +24,11 @@ import {
   reorderScene,
   serializeProject,
   undoHistory,
+  updateAnnotation,
   updateLayer,
+  updateReelColumn,
+  updateSceneOverview,
+  updateSymbol,
 } from "../lib/editor-model.js";
 
 test("30 scenes survive serialize and reload without data loss", () => {
@@ -34,6 +43,47 @@ test("30 scenes survive serialize and reload without data loss", () => {
   assert.equal(restored.sceneOrder.length, 30);
   assert.deepEqual(restored, project);
   for (const sceneId of restored.sceneOrder) assert.equal(restored.scenes[sceneId].layers.length >= 2, true);
+});
+
+test("variable reel grids and project symbols stay linked across scenes", () => {
+  let project = createProject();
+  const firstScene = project.sceneOrder[0];
+  const secondResult = addScene(project, "FG");
+  project = secondResult.project;
+  const symbolResult = addSymbol(project, "Wild", "#ffffff");
+  project = symbolResult.project;
+  project = addReelGridLayer(project, firstScene, [3, 4, 4, 4, 3]);
+  project = addReelGridLayer(project, secondResult.sceneId, [3, 3, 3, 3, 3]);
+  const firstGrid = project.scenes[firstScene].layers[0];
+  const secondGrid = project.scenes[secondResult.sceneId].layers[0];
+  project = assignReelSymbol(project, firstScene, firstGrid.id, 0, 0, symbolResult.symbolId);
+  project = assignReelSymbol(project, secondResult.sceneId, secondGrid.id, 2, 1, symbolResult.symbolId);
+  project = updateReelColumn(project, firstScene, firstGrid.id, 0, 5);
+  project = updateSymbol(project, symbolResult.symbolId, { name: "Wild 正式版", color: "#eeeeee" });
+  const restored = deserializeProject(serializeProject(project));
+  assert.equal(restored.scenes[firstScene].layers[0].columns[0].length, 5);
+  assert.equal(restored.scenes[firstScene].layers[0].columns[0][0], symbolResult.symbolId);
+  assert.equal(restored.scenes[secondResult.sceneId].layers[0].columns[2][1], symbolResult.symbolId);
+  assert.equal(restored.symbols[symbolResult.symbolId].name, "Wild 正式版");
+});
+
+test("flow positions, branching connections and anchored annotations persist", () => {
+  let project = createProject();
+  const first = project.sceneOrder[0];
+  const second = addScene(project, "FG"); project = second.project;
+  const third = addScene(project, "普通得分"); project = third.project;
+  project = updateSceneOverview(project, first, { x: 80, y: 120 });
+  project = addConnection(project, first, second.sceneId, "Scatter Trigger");
+  project = addConnection(project, first, third.sceneId, "普通結果");
+  const targetLayerId = project.scenes[first].layers[0].id;
+  project = addAnnotation(project, first, "背景需要更暗", targetLayerId);
+  const annotationId = project.scenes[first].annotations[0].id;
+  project = updateAnnotation(project, first, annotationId, { x: 1080, y: 160 });
+  const restored = deserializeProject(serializeProject(project));
+  assert.deepEqual(restored.scenes[first].overview, { x: 80, y: 120 });
+  assert.equal(restored.connections.length, 2);
+  assert.equal(restored.scenes[first].annotations[0].targetLayerId, targetLayerId);
+  assert.equal(restored.scenes[first].annotations[0].x, 1080);
 });
 
 test("scene rename, reorder and duplicate preserve stable source data", () => {
@@ -109,7 +159,7 @@ test("text, alignment and schema v1 migration use M2 defaults", () => {
   delete legacy.editorSettings;
   legacy.fonts = [];
   const migrated = deserializeProject(JSON.stringify(legacy));
-  assert.equal(migrated.schemaVersion, 2);
+  assert.equal(migrated.schemaVersion, 3);
   assert.equal(migrated.editorSettings.snap, true);
   assert.equal(migrated.fonts.length, 3);
 });
