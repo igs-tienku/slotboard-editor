@@ -54,6 +54,7 @@ import {
   updateSymbol,
 } from "../lib/editor-model.js";
 import { loadRecoveryProject, saveRecoveryProject } from "../lib/recovery-storage.js";
+import { hasDragIntent, nextFlowScenePosition, nextScrollPan, nextTranslatedPan } from "../lib/interaction-math.js";
 import { buildPrototypePsd, PROTOTYPE_FILE_NAME } from "../lib/psd-prototype.js";
 import { createProjectPackage, createTemplatePackage, openProjectPackage, openTemplatePackage } from "../lib/project-package.js";
 import { buildSceneFileNames, createProjectPdf, createPsdZip, createScenePsd, estimateExportWorkingSet } from "../lib/export-engine.js";
@@ -285,7 +286,7 @@ function svgClientPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
   return { x: transformed.x, y: transformed.y };
 }
 
-function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, onAutoArrange, onSelect, onStartConnection, onConnect, onMove, onUpdateConnection, onRemoveConnection }: any) {
+function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, onAutoArrange, onSelect, onStartConnection, onConnect, onMoveStart, onMovePreview, onMoveEnd, onUpdateConnection, onRemoveConnection }: any) {
   const drag = useRef<any>(null);
   const pan = useRef<any>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -318,13 +319,16 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
       setPanning(true); canvas.setPointerCapture?.(event.pointerId); event.preventDefault();
     }} onPointerMove={(event) => {
       if (pan.current) {
-        event.currentTarget.scrollLeft = pan.current.scrollLeft - (event.clientX - pan.current.startX);
-        event.currentTarget.scrollTop = pan.current.scrollTop - (event.clientY - pan.current.startY);
+        const next = nextScrollPan({ left: pan.current.scrollLeft, top: pan.current.scrollTop }, pan.current.startX, pan.current.startY, event.clientX, event.clientY);
+        event.currentTarget.scrollLeft = next.left;
+        event.currentTarget.scrollTop = next.top;
         return;
       }
       if (!drag.current) return;
-      onMove(drag.current.id, { x: drag.current.x + (event.clientX - drag.current.startX) / zoom, y: drag.current.y + (event.clientY - drag.current.startY) / zoom });
-    }} onPointerUp={() => { drag.current = null; pan.current = null; setPanning(false); }} onPointerCancel={() => { drag.current = null; pan.current = null; setPanning(false); }}>
+      if (!drag.current.moved && !hasDragIntent(drag.current.startX, drag.current.startY, event.clientX, event.clientY)) return;
+      drag.current.moved = true;
+      onMovePreview(drag.current.id, nextFlowScenePosition({ x: drag.current.x, y: drag.current.y }, drag.current.startX, drag.current.startY, event.clientX, event.clientY, zoom));
+    }} onPointerUp={() => { if (drag.current) onMoveEnd(drag.current.moved); drag.current = null; pan.current = null; setPanning(false); }} onPointerCancel={() => { if (drag.current) onMoveEnd(false); drag.current = null; pan.current = null; setPanning(false); }}>
     <div className="m12-flow-scaled-space" style={{ width: (width + margin * 2) * zoom, height: (height + margin * 2) * zoom }}><div className="m12-flow-world" style={{ width, height, left: margin * zoom, top: margin * zoom, transform: `scale(${zoom})` }}>
     <svg className="m3-connections" style={{ width, height }}>
       <defs><marker id="flowArrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 Z" fill="#6f772f" /></marker></defs>
@@ -338,7 +342,7 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
     </svg>
     {project.sceneOrder.map((id: string, index: number) => {
       const scene = project.scenes[id];
-      return <div key={id} className={`m3-flow-card ${id === activeSceneId ? "active" : ""} ${id === connectionFrom ? "connecting" : ""}`} style={{ left: scene.overview.x, top: scene.overview.y }} onPointerDown={(event) => { if ((event.target as Element).closest("button")) return; drag.current = { id, x: scene.overview.x, y: scene.overview.y, startX: event.clientX, startY: event.clientY }; event.currentTarget.setPointerCapture?.(event.pointerId); onSelect(id); }}>
+      return <div key={id} className={`m3-flow-card ${id === activeSceneId ? "active" : ""} ${id === connectionFrom ? "connecting" : ""}`} style={{ left: scene.overview.x, top: scene.overview.y }} onPointerDown={(event) => { if ((event.target as Element).closest("button")) return; drag.current = { id, x: scene.overview.x, y: scene.overview.y, startX: event.clientX, startY: event.clientY, moved: false }; onMoveStart(id); event.currentTarget.setPointerCapture?.(event.pointerId); onSelect(id); }}>
         <span className="flow-card-index">{String(index + 1).padStart(2, "0")}</span><div className="flow-card-preview"><SceneThumbnail scene={scene} /></div><b>{scene.name}</b><small>{scene.layers.length} layers · {scene.annotations.length} notes</small>
         <div><button onClick={() => onStartConnection(id)}>起點</button>{connectionFrom && connectionFrom !== id && <button className="connect-target" onClick={() => onConnect(id)}>連到這裡</button>}</div>
       </div>;
@@ -369,6 +373,7 @@ export function SlotBoardEditor() {
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
   const scenePanRef = useRef<any>(null);
+  const flowMoveRef = useRef<any>(null);
   const spaceHeldRef = useRef(false);
   const layerClipboardRef = useRef<any[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -565,7 +570,7 @@ export function SlotBoardEditor() {
     const point = svgClientPoint(svg, event.clientX, event.clientY);
     const dx = point.x - drag.startCanvasX;
     const dy = point.y - drag.startCanvasY;
-    if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
+    if (!drag.moved && !hasDragIntent(drag.startX, drag.startY, event.clientX, event.clientY)) return;
     drag.moved = true;
     if (drag.mode === "annotation") {
       const next = moveAnnotation(drag.baseHistory.present, activeSceneId, drag.id, { x: drag.basePosition.x + dx, y: drag.basePosition.y + dy });
@@ -642,11 +647,29 @@ export function SlotBoardEditor() {
   function moveScenePan(event: any) {
     const pan = scenePanRef.current;
     if (!pan) return;
-    setScenePan({ x: pan.x + event.clientX - pan.startX, y: pan.y + event.clientY - pan.startY });
+    setScenePan(nextTranslatedPan({ x: pan.x, y: pan.y }, pan.startX, pan.startY, event.clientX, event.clientY));
   }
 
   function endScenePan() {
     scenePanRef.current = null; setScenePanning(false);
+  }
+
+  function startFlowMove(id: string) {
+    flowMoveRef.current = { id, baseHistory: historyRef.current, latest: historyRef.current.present };
+  }
+
+  function previewFlowMove(id: string, position: any) {
+    const move = flowMoveRef.current;
+    if (!move || move.id !== id) return;
+    move.latest = updateSceneOverview(move.baseHistory.present, id, position);
+    setHistory({ ...move.baseHistory, present: move.latest });
+  }
+
+  function endFlowMove(commitMove: boolean) {
+    const move = flowMoveRef.current;
+    if (!move) return;
+    setHistory(commitMove ? commitHistory(move.baseHistory, move.latest) : move.baseHistory);
+    flowMoveRef.current = null;
   }
 
   function downloadPsd() {
@@ -880,7 +903,7 @@ export function SlotBoardEditor() {
             </div>
           </div>
           <footer className="m1-statusbar"><span>Scene {sceneIndex + 1}/{project.sceneOrder.length}</span><span>{flattenedCount} 個圖層</span><span>{scene.width} × {scene.height}px</span><button className={project.editorSettings.snap ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { snap: !project.editorSettings.snap }))}>吸附</button><button className={project.editorSettings.guides ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { guides: !project.editorSettings.guides }))}>參考線</button><button className={project.editorSettings.pixelGrid ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { pixelGrid: !project.editorSettings.pixelGrid }))}>像素格</button><button onClick={() => setScenePan({ x: 0, y: 0 })}>畫布置中</button><span className="m1-tip">空白處拖曳，或按住 Space／中鍵平移</span></footer>
-          </> : <FlowOverview project={project} activeSceneId={activeSceneId} connectionFrom={connectionFrom} zoom={project.editorSettings.flowZoom ?? 1} onZoom={(flowZoom: number) => commit(updateEditorSettings(project, { flowZoom: Math.round(flowZoom * 10) / 10 }))} onAutoArrange={() => { if (window.confirm("自動整理會重新排列所有 Scene，連線內容不會改變。確定繼續？")) commit(autoArrangeScenes(project)); }} onSelect={setActiveSceneId} onStartConnection={(id: string) => setConnectionFrom(id)} onConnect={(id: string) => { if (connectionFrom) commit(addConnection(project, connectionFrom, id)); setConnectionFrom(null); }} onMove={(id: string, position: any) => commit(updateSceneOverview(project, id, position))} onUpdateConnection={(id: string, label: string) => commit(updateConnection(project, id, { label }))} onRemoveConnection={(id: string) => commit(removeConnection(project, id))} />}
+          </> : <FlowOverview project={project} activeSceneId={activeSceneId} connectionFrom={connectionFrom} zoom={project.editorSettings.flowZoom ?? 1} onZoom={(flowZoom: number) => commit(updateEditorSettings(project, { flowZoom: Math.round(flowZoom * 10) / 10 }))} onAutoArrange={() => { if (window.confirm("自動整理會重新排列所有 Scene，連線內容不會改變。確定繼續？")) commit(autoArrangeScenes(project)); }} onSelect={setActiveSceneId} onStartConnection={(id: string) => setConnectionFrom(id)} onConnect={(id: string) => { if (connectionFrom) commit(addConnection(project, connectionFrom, id)); setConnectionFrom(null); }} onMoveStart={startFlowMove} onMovePreview={previewFlowMove} onMoveEnd={endFlowMove} onUpdateConnection={(id: string, label: string) => commit(updateConnection(project, id, { label }))} onRemoveConnection={(id: string) => commit(removeConnection(project, id))} />}
         </section>
 
         <aside className="m1-right">

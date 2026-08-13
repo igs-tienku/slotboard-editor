@@ -87,6 +87,9 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /按住 Space／中鍵平移/);
   assert.match(editor, /aspectRatio/);
   assert.match(editor, /buildPrototypePsd/);
+  assert.match(editor, /onMoveStart={startFlowMove}/);
+  assert.match(editor, /onMovePreview={previewFlowMove}/);
+  assert.match(editor, /commitHistory\(move\.baseHistory, move\.latest\)/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);
   assert.match(css, /\.m1-center\s*\{[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
