@@ -22,12 +22,14 @@ import {
   findLayer,
   groupLayers,
   importSceneTemplate,
+  locateLayerInScene,
   projectAssetBytes,
   redoHistory,
   removeAnnotation,
   removeConnection,
   removeReelColumn,
   removeLayers,
+  reorderLayer,
   replaceLayerWithImage,
   renameScene,
   reorderScene,
@@ -169,16 +171,16 @@ function ReelGridVisual({ layer, symbols }: { layer: any; symbols: any }) {
   </>;
 }
 
-function LayerVisual({ layer, assets, selectedIds, onSelect }: { layer: any; assets: any; selectedIds: string[]; onSelect: (event: any, id: string) => void }) {
+function LayerVisual({ layer, assets, selectedIds, onSelect, onContextMenu }: { layer: any; assets: any; selectedIds: string[]; onSelect: (event: any, id: string) => void; onContextMenu: (event: any, id: string) => void }) {
   if (!layer.visible) return null;
   const transform = layer.transform;
   const flipX = transform.flipX ? -1 : 1;
   const flipY = transform.flipY ? -1 : 1;
   const transformValue = `translate(${transform.x} ${transform.y}) rotate(${transform.rotation} ${transform.width / 2} ${transform.height / 2}) translate(${transform.flipX ? transform.width : 0} ${transform.flipY ? transform.height : 0}) scale(${flipX} ${flipY})`;
   return (
-    <g transform={transformValue} opacity={layer.opacity} onPointerDown={(event) => onSelect(event, layer.id)} style={{ cursor: layer.locked ? "not-allowed" : "move" }}>
+    <g transform={transformValue} opacity={layer.opacity} onPointerDown={(event) => onSelect(event, layer.id)} onContextMenu={(event) => onContextMenu(event, layer.id)} style={{ cursor: layer.locked ? "not-allowed" : "move" }}>
       {layer.type === "group"
-        ? layer.children.map((child: any) => <LayerVisual key={child.id} layer={child} assets={assets} selectedIds={selectedIds} onSelect={onSelect} />)
+        ? layer.children.map((child: any) => <LayerVisual key={child.id} layer={child} assets={assets} selectedIds={selectedIds} onSelect={onSelect} onContextMenu={onContextMenu} />)
         : layer.type === "image" ? <ImageVisual layer={layer} asset={assets[layer.assetId]} />
           : layer.type === "text" ? <TextVisual layer={layer} />
             : layer.type === "reelGrid" ? <ReelGridVisual layer={layer} symbols={assets.__symbols ?? {}} /> : <ShapeVisual layer={layer} />}
@@ -194,16 +196,16 @@ function LayerVisual({ layer, assets, selectedIds, onSelect }: { layer: any; ass
   );
 }
 
-function LayerTree({ layers, selectedIds, onSelect, onToggle, depth = 0 }: any) {
+function LayerTree({ layers, selectedIds, onSelect, onToggle, onContextMenu, depth = 0 }: any) {
   return layers.map((layer: any) => (
     <div key={layer.id}>
-      <div className={`m1-layer-row ${selectedIds.includes(layer.id) ? "selected" : ""}`} style={{ paddingLeft: 12 + depth * 18 }} onClick={(event) => onSelect(event, layer.id)}>
+      <div className={`m1-layer-row ${selectedIds.includes(layer.id) ? "selected" : ""}`} style={{ paddingLeft: 12 + depth * 18 }} onClick={(event) => onSelect(event, layer.id)} onContextMenu={(event) => onContextMenu(event, layer.id)}>
         <button title={layer.visible ? "隱藏" : "顯示"} onClick={(event) => { event.stopPropagation(); onToggle(layer.id, "visible"); }}>{layer.visible ? "●" : "○"}</button>
         <span className="layer-kind">{layer.type === "group" ? "▣" : "◆"}</span>
         <span className="layer-label"><b>{layer.name}</b><small>{layer.type === "group" ? `${layer.children.length} 個子圖層` : layer.type === "image" ? "圖片" : layer.type === "text" ? "文字" : layer.type === "reelGrid" ? `${layer.columns.length} 軸` : layer.kind}</small></span>
         <button title={layer.locked ? "解鎖" : "鎖定"} onClick={(event) => { event.stopPropagation(); onToggle(layer.id, "locked"); }}>{layer.locked ? "🔒" : "·"}</button>
       </div>
-      {layer.type === "group" && layer.opened !== false && <LayerTree layers={layer.children} selectedIds={selectedIds} onSelect={onSelect} onToggle={onToggle} depth={depth + 1} />}
+      {layer.type === "group" && layer.opened !== false && <LayerTree layers={layer.children} selectedIds={selectedIds} onSelect={onSelect} onToggle={onToggle} onContextMenu={onContextMenu} depth={depth + 1} />}
     </div>
   ));
 }
@@ -257,6 +259,7 @@ export function SlotBoardEditor() {
   const [connectionFrom, setConnectionFrom] = useState<string | null>(null);
   const [exportBusy, setExportBusy] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string | null } | null>(null);
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -269,6 +272,13 @@ export function SlotBoardEditor() {
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  }, [contextMenu]);
 
   useEffect(() => {
     loadRecoveryProject()
@@ -301,7 +311,7 @@ export function SlotBoardEditor() {
         setSelectedIds([]);
         return;
       }
-      if (!editing && event.key === "Escape") { setSelectedIds([]); setShowExport(false); return; }
+      if (!editing && event.key === "Escape") { setSelectedIds([]); setShowExport(false); setContextMenu(null); return; }
       if (editing || !(event.ctrlKey || event.metaKey)) return;
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
@@ -330,6 +340,7 @@ export function SlotBoardEditor() {
 
   function selectLayer(event: any, id: string) {
     event.stopPropagation();
+    if (event.button !== undefined && event.button !== 0) return;
     const layer: any = findLayer(scene.layers, id);
     if (!layer || layer.locked) return;
     const nextSelection = event.shiftKey
@@ -348,6 +359,7 @@ export function SlotBoardEditor() {
       baseHistory: historyRef.current,
       baseTransform: structuredClone(layer.transform),
       latest: historyRef.current.present,
+      moved: false,
     };
     (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
   }
@@ -359,6 +371,8 @@ export function SlotBoardEditor() {
     const scale = scene.width / rect.width;
     const dx = (event.clientX - drag.startX) * scale;
     const dy = (event.clientY - drag.startY) * scale;
+    if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 4) return;
+    drag.moved = true;
     const next = updateLayer(drag.baseHistory.present, activeSceneId, drag.id, (layer: any) => {
       if (drag.mode === "move") {
         let x = Math.round(drag.baseTransform.x + dx);
@@ -378,18 +392,29 @@ export function SlotBoardEditor() {
           if (snapX !== undefined) { x = Math.round(snapX); nextGuides.x = x + layer.transform.width / 2; }
           if (snapY !== undefined) { y = Math.round(snapY); nextGuides.y = y + layer.transform.height / 2; }
         }
-        layer.transform.x = x;
-        layer.transform.y = y;
+        layer.transform.x = Math.min(Math.max(0, x), Math.max(0, scene.width - layer.transform.width));
+        layer.transform.y = Math.min(Math.max(0, y), Math.max(0, scene.height - layer.transform.height));
         setGuides(nextGuides);
       } else if (drag.mode === "resize") {
-        layer.transform.width = Math.max(24, Math.round(drag.baseTransform.width + dx));
-        layer.transform.height = Math.max(24, Math.round(drag.baseTransform.height + dy));
+        let width = Math.max(24, Math.round(drag.baseTransform.width + dx));
+        let height = Math.max(24, Math.round(drag.baseTransform.height + dy));
+        if (event.shiftKey) {
+          const ratio = drag.baseTransform.width / drag.baseTransform.height;
+          if (Math.abs(dx) >= Math.abs(dy)) height = Math.max(24, Math.round(width / ratio));
+          else width = Math.max(24, Math.round(height * ratio));
+        }
+        const maxWidth = Math.max(24, scene.width - drag.baseTransform.x), maxHeight = Math.max(24, scene.height - drag.baseTransform.y);
+        const fitScale = Math.min(1, maxWidth / width, maxHeight / height);
+        layer.transform.width = Math.round(width * fitScale);
+        layer.transform.height = Math.round(height * fitScale);
       } else {
         const cx = drag.baseTransform.x + drag.baseTransform.width / 2;
         const cy = drag.baseTransform.y + drag.baseTransform.height / 2;
         const px = (event.clientX - rect.left) * scale;
         const py = (event.clientY - rect.top) * scale;
-        layer.transform.rotation = Math.round(Math.atan2(py - cy, px - cx) * 180 / Math.PI + 90);
+        let rotation = Math.round(Math.atan2(py - cy, px - cx) * 180 / Math.PI + 90);
+        if (event.shiftKey) rotation = Math.round(rotation / 90) * 90;
+        layer.transform.rotation = ((rotation % 360) + 360) % 360;
       }
     });
     drag.latest = next;
@@ -399,7 +424,7 @@ export function SlotBoardEditor() {
   function pointerUp() {
     const drag = dragRef.current;
     if (!drag) return;
-    setHistory(commitHistory(drag.baseHistory, drag.latest));
+    if (drag.moved) setHistory(commitHistory(drag.baseHistory, drag.latest));
     dragRef.current = null;
     setGuides({});
   }
@@ -507,6 +532,25 @@ export function SlotBoardEditor() {
   function align(mode: string) { commit(alignLayers(project, activeSceneId, selectedIds, mode)); }
   function distribute(axis: string) { commit(distributeLayers(project, activeSceneId, selectedIds, axis)); }
 
+  function openContextMenu(event: any, layerId: string | null = null) {
+    event.preventDefault(); event.stopPropagation();
+    if (layerId && !selectedIds.includes(layerId)) setSelectedIds([layerId]);
+    setContextMenu({ x: Math.min(event.clientX, window.innerWidth - 190), y: Math.min(event.clientY, window.innerHeight - 260), layerId });
+  }
+
+  function contextAction(action: string) {
+    const layerId = contextMenu?.layerId ?? selectedIds[0] ?? null;
+    if (action === "addScene") { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }
+    if (action === "addRectangle") { const next = addLayer(project, activeSceneId, "rectangle"); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }
+    if (action === "addText") { const next = addTextLayer(project, activeSceneId); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }
+    if (layerId && action === "locate") commit(locateLayerInScene(project, activeSceneId, layerId));
+    if (layerId && action === "front") commit(reorderLayer(project, activeSceneId, layerId, "front"));
+    if (layerId && action === "back") commit(reorderLayer(project, activeSceneId, layerId, "back"));
+    if (layerId && action === "replace") imageInputRef.current?.click();
+    if (layerId && action === "delete") { commit(removeLayers(project, activeSceneId, [layerId])); setSelectedIds([]); }
+    setContextMenu(null);
+  }
+
   return (
     <main className="m1-shell">
       <header className="m1-topbar">
@@ -518,12 +562,12 @@ export function SlotBoardEditor() {
           <button className={viewMode === "flow" ? "mode-active" : ""} onClick={() => setViewMode("flow")}>流程</button>
           <span>{recoveryReady ? "自動儲存開啟" : "載入草稿…"}</span>
         </div>
-        <div className="m1-actions"><button className="secondary" onClick={() => packageInputRef.current?.click()}>開啟</button><button className="secondary" onClick={exportProject}>儲存</button><button className="secondary" onClick={exportTemplate}>模板</button><button className="secondary" onClick={() => setShowExport(true)}>輸出</button><button className="accent" onClick={() => { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }}>＋ Scene</button><input className="visually-hidden" ref={packageInputRef} type="file" accept=".slotboard,.slottemplate" onChange={(event) => { void importPackage(event.target.files?.[0]); event.target.value = ""; }} /></div>
+        <div className="m1-actions"><button className="secondary" onClick={() => packageInputRef.current?.click()}>開啟</button><button className="secondary" onClick={exportProject}>儲存</button><button className="secondary" onClick={exportTemplate}>模板</button><button className="secondary" onClick={() => setShowExport(true)}>輸出</button><input className="visually-hidden" ref={packageInputRef} type="file" accept=".slotboard,.slottemplate" onChange={(event) => { void importPackage(event.target.files?.[0]); event.target.value = ""; }} /></div>
       </header>
 
       <div className="m1-workspace">
         <aside className="m1-scenes">
-          <div className="m1-panel-title"><span>SCENES</span><b>{project.sceneOrder.length}</b></div>
+          <div className="m1-panel-title"><span>SCENES</span><button className="m6-add-scene" onClick={() => { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }}>＋ Scene</button><b>{project.sceneOrder.length}</b></div>
           <div className="m1-scene-list">
             {project.sceneOrder.map((id: string, index: number) => {
               const item = project.scenes[id];
@@ -554,12 +598,12 @@ export function SlotBoardEditor() {
             <button disabled={!selectedLayer || selectedLayer.type === "group"} onClick={() => imageInputRef.current?.click()}><b>▧</b><small>換圖片</small></button>
             <input ref={imageInputRef} className="visually-hidden" type="file" accept="image/*" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
           </div>
-          <div className={`m1-stage-wrap ${project.editorSettings.pixelGrid ? "pixel-grid" : ""}`} onPointerDown={() => setSelectedIds([])}>
+          <div className={`m1-stage-wrap ${project.editorSettings.pixelGrid ? "pixel-grid" : ""}`} onPointerDown={(event) => { if (event.target === event.currentTarget) setSelectedIds([]); setContextMenu(null); }} onContextMenu={(event) => openContextMenu(event)}>
             <div className="m3-editor-plane">
             <svg className="m1-canvas" viewBox={`0 0 ${scene.width} ${scene.height}`} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label={`${scene.name} 編輯畫布`}>
               <defs><marker id="arrowhead" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#f2f2ed" /></marker></defs>
               <rect width={scene.width} height={scene.height} fill="#31322f" />
-              {[...scene.layers].reverse().map((layer: any) => <LayerVisual key={layer.id} layer={layer} assets={{ ...project.assets, __symbols: project.symbols }} selectedIds={selectedIds} onSelect={selectLayer} />)}
+              {[...scene.layers].reverse().map((layer: any) => <LayerVisual key={layer.id} layer={layer} assets={{ ...project.assets, __symbols: project.symbols }} selectedIds={selectedIds} onSelect={selectLayer} onContextMenu={openContextMenu} />)}
               {project.editorSettings.guides && guides.x !== undefined && <line x1={guides.x} x2={guides.x} y1={0} y2={scene.height} stroke="#d9ff43" strokeWidth={1} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
               {project.editorSettings.guides && guides.y !== undefined && <line x1={0} x2={scene.width} y1={guides.y} y2={guides.y} stroke="#d9ff43" strokeWidth={1} vectorEffect="non-scaling-stroke" pointerEvents="none" />}
             </svg>
@@ -572,7 +616,7 @@ export function SlotBoardEditor() {
 
         <aside className="m1-right">
           <div className="m1-tabs"><b>圖層</b><span>屬性</span></div>
-          <div className="m1-layer-list"><LayerTree layers={scene.layers} selectedIds={selectedIds} onSelect={selectLayer} onToggle={(id: string, prop: string) => commit(updateLayer(project, activeSceneId, id, (layer: any) => { layer[prop] = !layer[prop]; }))} /></div>
+          <div className="m1-layer-list"><LayerTree layers={scene.layers} selectedIds={selectedIds} onSelect={selectLayer} onContextMenu={openContextMenu} onToggle={(id: string, prop: string) => commit(updateLayer(project, activeSceneId, id, (layer: any) => { layer[prop] = !layer[prop]; }))} /></div>
           <section className="m1-properties">
             <div className="m1-panel-title"><span>PROPERTIES</span>{selectedLayer && <b>{selectedLayer.type === "group" ? "群組" : "圖形"}</b>}</div>
             {selectedLayer ? <>
@@ -580,6 +624,7 @@ export function SlotBoardEditor() {
                 <span>對齊</span>
                 <div>{[["left","靠左"],["centerX","水平置中"],["right","靠右"],["top","靠上"],["centerY","垂直置中"],["bottom","靠下"]].map(([mode, title]) => <button key={mode} title={title} onClick={() => align(mode)}>{mode === "left" ? "┫" : mode === "right" ? "┣" : mode === "top" ? "┻" : mode === "bottom" ? "┳" : "╋"}</button>)}</div>
                 <div><button disabled={selectedIds.length < 3} onClick={() => distribute("x")}>水平等距</button><button disabled={selectedIds.length < 3} onClick={() => distribute("y")}>垂直等距</button></div>
+                <button className="m6-locate" onClick={() => commit(locateLayerInScene(project, activeSceneId, selectedLayer.id))}>找回畫面中央</button>
               </div>
               <label className="m1-field full"><span>圖層名稱</span><input value={selectedLayer.name} onChange={(event) => updateSelected("name", event.target.value)} /></label>
               <div className="m1-property-grid">
@@ -614,6 +659,20 @@ export function SlotBoardEditor() {
           <section className="m3-symbol-panel"><div className="m1-panel-title"><span>PROJECT SYMBOLS</span><button onClick={() => { const result = addSymbol(project, `Symbol ${Object.keys(project.symbols).length + 1}`); commit(result.project); }}>＋ 新增</button></div>{Object.values(project.symbols).length ? Object.values(project.symbols).map((symbol: any) => <div className="m3-symbol-row" key={symbol.id}><input type="color" value={symbol.color} onChange={(event) => commit(updateSymbol(project, symbol.id, { color: event.target.value }))} /><input value={symbol.name} onChange={(event) => commit(updateSymbol(project, symbol.id, { name: event.target.value }))} /><small>{Object.values(project.scenes).reduce((count: number, item: any) => { let uses = 0; const visit = (layers: any[]) => layers.forEach((layer) => { if (layer.type === "reelGrid") layer.columns.flat().forEach((id: string) => { if (id === symbol.id) uses += 1; }); if (layer.children) visit(layer.children); }); visit(item.layers); return count + uses; }, 0)} 次引用</small></div>) : <p className="empty-properties">先新增專案 Symbol，再於 Reel Grid 的格子中引用；改名或改色會跨 Scene 同步。</p>}</section>
         </aside>
       </div>
+      {contextMenu && <div className="m6-context-menu" role="menu" style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={(event) => event.stopPropagation()}>
+        {contextMenu.layerId ? <>
+          <button role="menuitem" onClick={() => contextAction("locate")}>找回畫面中央</button>
+          <button role="menuitem" onClick={() => contextAction("front")}>移到最上層</button>
+          <button role="menuitem" onClick={() => contextAction("back")}>移到最下層</button>
+          {(findLayer(scene.layers, contextMenu.layerId) as any)?.type !== "group" && <button role="menuitem" onClick={() => contextAction("replace")}>置換成圖片…</button>}
+          <hr />
+          <button className="danger" role="menuitem" onClick={() => contextAction("delete")}>刪除物件</button>
+        </> : <>
+          <button role="menuitem" onClick={() => contextAction("addRectangle")}>新增矩形</button>
+          <button role="menuitem" onClick={() => contextAction("addText")}>新增文字</button>
+          <button role="menuitem" onClick={() => contextAction("addScene")}>新增 Scene</button>
+        </>}
+      </div>}
       {notice && <button className="m2-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
       {showExport && <div className="m5-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !exportBusy) setShowExport(false); }}><section className="m5-export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="m5-modal-head"><div><small>EXPORT PREVIEW</small><h2 id="export-title">正式輸出</h2></div><button aria-label="關閉輸出視窗" onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress" role="status">正在逐層光柵化與封裝，請勿關閉頁面…</p>}</section></div>}
     </main>

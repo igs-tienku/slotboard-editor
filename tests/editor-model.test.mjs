@@ -123,7 +123,7 @@ test("shape edits, grouping and undo redo are reversible", () => {
 test("image replacement keeps crop settings after reload and can reset placeholder", () => {
   let project = createProject();
   const sceneId = project.sceneOrder[0];
-  const layerId = project.scenes[sceneId].layers[1].id;
+  const layerId = project.scenes[sceneId].layers.find((layer) => layer.name.includes("Placeholder")).id;
   const asset = { id: "asset_test", name: "hero.png", mimeType: "image/png", byteLength: 1024, width: 1200, height: 800, dataUrl: "data:image/png;base64,AAAA" };
   project = replaceLayerWithImage(project, sceneId, layerId, asset);
   project = updateLayer(project, sceneId, layerId, (layer) => {
@@ -132,15 +132,16 @@ test("image replacement keeps crop settings after reload and can reset placehold
     layer.imageScale = 1.45;
   });
   const restored = deserializeProject(serializeProject(project));
-  const imageLayer = restored.scenes[sceneId].layers[1];
+  const imageLayer = restored.scenes[sceneId].layers.find((layer) => layer.id === layerId);
   assert.equal(imageLayer.type, "image");
   assert.deepEqual(imageLayer.focalPoint, { x: .2, y: .8 });
   assert.equal(imageLayer.imageScale, 1.45);
   assert.equal(projectAssetBytes(restored), 1024);
 
   const reset = resetImagePlaceholder(restored, sceneId, layerId);
-  assert.equal(reset.scenes[sceneId].layers[1].type, "shape");
-  assert.equal(reset.scenes[sceneId].layers[1].name, "盤面 Placeholder");
+  const resetLayer = reset.scenes[sceneId].layers.find((layer) => layer.id === layerId);
+  assert.equal(resetLayer.type, "shape");
+  assert.equal(resetLayer.name, "盤面 Placeholder");
   assert.equal(projectAssetBytes(reset), 0);
 });
 
@@ -168,9 +169,33 @@ test("removing selected layers also clears annotations anchored to them", async 
   const { addAnnotation, removeLayers } = await import("../lib/editor-model.js");
   let project = createProject();
   const sceneId = project.sceneOrder[0];
-  const layerId = project.scenes[sceneId].layers[1].id;
+  const layerId = project.scenes[sceneId].layers.find((layer) => layer.name.includes("Placeholder")).id;
   project = addAnnotation(project, sceneId, "remove with target", layerId);
   project = removeLayers(project, sceneId, [layerId]);
   assert.equal(project.scenes[sceneId].layers.length, 1);
   assert.equal(project.scenes[sceneId].annotations.length, 0);
+});
+
+test("locate and layer-order commands recover off-canvas objects", async () => {
+  const { locateLayerInScene, reorderLayer, updateLayer } = await import("../lib/editor-model.js");
+  let project = createProject();
+  const sceneId = project.sceneOrder[0], layerId = project.scenes[sceneId].layers.find((layer) => layer.name.includes("Placeholder")).id;
+  project = updateLayer(project, sceneId, layerId, (layer) => { layer.transform.x = -4000; layer.transform.y = 9000; });
+  project = locateLayerInScene(project, sceneId, layerId);
+  const located = project.scenes[sceneId].layers.find((layer) => layer.id === layerId);
+  assert.ok(located.transform.x >= 0 && located.transform.x + located.transform.width <= project.scenes[sceneId].width);
+  assert.ok(located.transform.y >= 0 && located.transform.y + located.transform.height <= project.scenes[sceneId].height);
+  project = reorderLayer(project, sceneId, layerId, "back");
+  assert.equal(project.scenes[sceneId].layers.at(-1).id, layerId);
+  project = reorderLayer(project, sceneId, layerId, "front");
+  assert.equal(project.scenes[sceneId].layers[0].id, layerId);
+});
+
+test("loading an older project repairs a full-canvas background placed on top", () => {
+  const project = createProject();
+  const sceneId = project.sceneOrder[0], scene = project.scenes[sceneId];
+  scene.layers.unshift(scene.layers.pop());
+  assert.equal(scene.layers[0].name, "背景");
+  const restored = deserializeProject(JSON.stringify(project));
+  assert.equal(restored.scenes[sceneId].layers.at(-1).name, "背景");
 });

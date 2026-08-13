@@ -56,6 +56,13 @@ npm run test
 - 已加入 Delete／Backspace、Escape、輸入欄位快捷鍵保護與清楚的鍵盤焦點。
 - GitHub Pages 子路徑採相對資產路徑建置；人工瀏覽器與 Krita／Photoshop 驗收清單見 `docs/M6-QA.md`。
 
+### M6.1 操作修正
+
+- 點擊物件不再建立空白拖曳紀錄；超過 4px 才開始移動，且物件與縮放結果會留在 Scene 範圍內。
+- Shift＋縮放維持比例；Shift＋旋轉吸附 0°／90°／180°／270°。
+- 右鍵可找回物件、調整最上／最下層、置換圖片或刪除；空白處右鍵可新增常用內容。
+- 新舊專案的全畫布背景均會保持在最下層，PSD 匯出另有同樣防呆。
+
 測試會完成 TypeScript 檢查、GitHub Pages 相容打包、重新產生 PSD，並驗證尺寸、中文圖層名稱、巢狀群組、順序、隱藏狀態及透明度。
 
 基準 PSD 位於 `artifacts/psd-prototype/01_PSD技術驗證.psd`。已由使用者在 Krita 實際開啟並確認結構正常；正式發版前仍應補 Photoshop 相容性驗證。
