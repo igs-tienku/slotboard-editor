@@ -62,6 +62,8 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /runWorkerTask/);
   assert.match(editor, /sceneThumbnailCache/);
   assert.match(editor, /背景處理/);
+  assert.match(editor, /estimateExportWorkingSet/);
+  assert.match(editor, /預估 PSD 峰值/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);

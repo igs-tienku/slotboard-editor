@@ -62,10 +62,11 @@ test("real Scene PSD preserves transformed group pixels, opacity and background 
   assert.ok(Math.abs(parsedChild.opacity - 0.5) < 0.01);
   const actualBounds = alphaBounds(parsedChild.imageData);
   assert.deepEqual(
-    { left: actualBounds.left, top: actualBounds.top, right: actualBounds.right, bottom: actualBounds.bottom },
+    { left: parsedChild.left + actualBounds.left, top: parsedChild.top + actualBounds.top, right: parsedChild.left + actualBounds.right, bottom: parsedChild.top + actualBounds.bottom },
     { left: expectedBounds.left, top: expectedBounds.top, right: expectedBounds.right, bottom: expectedBounds.bottom },
   );
   assert.equal(actualBounds.maxAlpha, 255, "leaf opacity must stay in the PSD property, not be baked into pixels");
+  assert.ok(parsedChild.imageData.width < scene.width && parsedChild.imageData.height < scene.height, "transparent PSD margins should be cropped");
 });
 
 test("project Symbol images render inside Reel Grid pixels in the exported PSD", async () => {
@@ -88,8 +89,8 @@ test("project Symbol images render inside Reel Grid pixels in the exported PSD",
   });
   const parsedGrid = findLayer(parsed.children, grid.name);
   assert.ok(parsedGrid?.imageData);
-  const x = Math.round(grid.transform.x + grid.transform.width / 2);
-  const y = Math.round(grid.transform.y + grid.transform.height / 2);
+  const x = Math.round(grid.transform.x + grid.transform.width / 2 - parsedGrid.left);
+  const y = Math.round(grid.transform.y + grid.transform.height / 2 - parsedGrid.top);
   const offset = (y * parsedGrid.imageData.width + x) * 4;
   const pixel = parsedGrid.imageData.data.slice(offset, offset + 4);
   assert.ok(pixel[0] > 220 && pixel[1] < 80 && pixel[2] < 80 && pixel[3] > 240, `expected red Symbol pixel, got ${[...pixel]}`);

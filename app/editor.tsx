@@ -56,7 +56,7 @@ import {
 import { loadRecoveryProject, saveRecoveryProject } from "../lib/recovery-storage.js";
 import { buildPrototypePsd, PROTOTYPE_FILE_NAME } from "../lib/psd-prototype.js";
 import { createProjectPackage, createTemplatePackage, openProjectPackage, openTemplatePackage } from "../lib/project-package.js";
-import { buildSceneFileNames, createProjectPdf, createPsdZip, createScenePsd } from "../lib/export-engine.js";
+import { buildSceneFileNames, createProjectPdf, createPsdZip, createScenePsd, estimateExportWorkingSet } from "../lib/export-engine.js";
 import { runWorkerTask, supportsSlotBoardWorker } from "../lib/worker-client";
 
 const LEGACY_RECOVERY_KEY = "slotboard:m1-recovery";
@@ -425,6 +425,7 @@ export function SlotBoardEditor() {
     visit(scene.layers);
     return count;
   }, [scene.layers]);
+  const exportEstimate = useMemo(() => estimateExportWorkingSet(project), [project]);
 
   function commit(nextProject: any) {
     if (project.compatibility?.readOnly) { setNotice("此專案來自較新的 schema，目前為唯讀；請先建立可編輯副本"); return; }
@@ -911,7 +912,7 @@ export function SlotBoardEditor() {
           <div className="m10-setup-actions"><button onClick={() => setSetupMode(null)}>取消</button><button className="primary" onClick={applySetup}>{setupMode === "project" ? "建立專案" : "新增 Scene"}</button></div>
         </section>
       </div>}
-      {showExport && <div className="m5-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !exportBusy) setShowExport(false); }}><section className="m5-export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="m5-modal-head"><div><small>EXPORT PREVIEW · {supportsSlotBoardWorker() ? "背景處理" : "相容模式"}</small><h2 id="export-title">正式輸出</h2></div><button aria-label="關閉輸出視窗" onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress" role="status">正在背景逐層光柵化與封裝，可繼續檢視目前專案…</p>}</section></div>}
+      {showExport && <div className="m5-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !exportBusy) setShowExport(false); }}><section className="m5-export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="m5-modal-head"><div><small>EXPORT PREVIEW · {supportsSlotBoardWorker() ? "背景處理" : "相容模式"}</small><h2 id="export-title">正式輸出</h2></div><button aria-label="關閉輸出視窗" onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className={`m15-export-estimate ${exportEstimate.psdPeakBytes + exportEstimate.assetBytes > 512 * 1024 * 1024 ? "warning" : ""}`}><b>{exportEstimate.totalLayers} 個輸出圖層</b><span>預估 PSD 峰值 {Math.ceil(exportEstimate.psdPeakBytes / 1024 / 1024)} MB · 素材 {Math.ceil(exportEstimate.assetBytes / 1024 / 1024)} MB</span></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress" role="status">正在背景逐層光柵化與封裝，可繼續檢視目前專案…</p>}</section></div>}
     </main>
   );
 }

@@ -1,6 +1,6 @@
 # SlotBoard 分鏡編輯器
 
-此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M14 編輯器。
+此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M15 編輯器。
 
 ## 已完成
 
@@ -122,6 +122,13 @@ npm run test
 - 瀏覽器不支援或 Worker 發生錯誤時會自動退回相容模式，不會讓輸出功能失效。
 - Worker 以獨立 GitHub Pages 資產建置；正式 Scene PSD 已通過無 `document` 的離屏畫布測試。
 - Scene 縮圖改為依 `scene.id + thumbnailRevision` 快取的低成本 SVG，最多保留 200 份，避免流程總覽重複建立大量節點。
+
+## M15 真實輸出壓測與記憶體優化
+
+- PSD 子圖層改為逐層光柵化，不再以 `Promise.all` 同時保留大量全畫布像素。
+- 每個 PSD 圖層會裁掉透明邊界，仍保留正確的 `left／top／right／bottom` 與群組結構。
+- 輸出視窗會顯示圖層數、素材量與 PSD 峰值工作記憶體估算，超過 512 MB 時顯示警示。
+- 自動壓測包含 8 Scene × 50 圖層真實 Canvas 渲染，以及 3 Scene × 18 圖層的 PSD ZIP、PDF 實際產生；目前 30 秒測試預算內通過。
 
 測試會完成 TypeScript 檢查、GitHub Pages 相容打包、重新產生 PSD，並驗證尺寸、中文圖層名稱、巢狀群組、順序、隱藏狀態及透明度。
 

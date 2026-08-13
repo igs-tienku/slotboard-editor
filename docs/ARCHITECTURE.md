@@ -313,6 +313,8 @@ project.slotboard
 
 補完紀錄（2026-08-13）：圖片縮小、Scene PSD、批次 PSD ZIP 與 PDF 已加入 Worker／OffscreenCanvas 優先路徑及主執行緒相容回退；Worker 以獨立靜態資產建置。Scene 縮圖改用 revision keyed SVG cache，設有 200 份上限。離屏 PSD 與 Worker 資產均納入自動測試。
 
+補完紀錄（2026-08-13）：PSD 圖層建置改為循序處理並依 alpha bounds 裁切透明邊界，降低瞬間記憶體與輸出體積；輸出介面加入工作集估算。壓測已涵蓋 8×50 圖層 Canvas 渲染、3×18 圖層 PSD ZIP 與 PDF 實際輸出，並保留正式 PSD 像素／群組 round-trip 驗證。
+
 ### M4：可攜專案與模板（已完成）
 
 - `.slotboard` 匯出／匯入。
