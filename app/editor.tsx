@@ -31,9 +31,11 @@ import {
   removeLayers,
   reorderLayer,
   replaceLayerWithImage,
+  replaceSymbolImage,
   renameScene,
   reorderScene,
   resetImagePlaceholder,
+  resetSymbolImage,
   serializeProject,
   undoHistory,
   ungroupLayer,
@@ -156,7 +158,7 @@ function TextVisual({ layer }: { layer: any }) {
   </>;
 }
 
-function ReelGridVisual({ layer, symbols }: { layer: any; symbols: any }) {
+function ReelGridVisual({ layer, symbols, assets }: { layer: any; symbols: any; assets: any }) {
   const { width, height } = layer.transform;
   const columnWidth = (width - layer.gap * (layer.columns.length + 1)) / layer.columns.length;
   return <>
@@ -165,11 +167,22 @@ function ReelGridVisual({ layer, symbols }: { layer: any; symbols: any }) {
       const cellHeight = (height - layer.gap * (column.length + 1)) / column.length;
       return column.map((symbolId, rowIndex) => {
         const symbol = symbolId ? symbols[symbolId] : null;
+        const asset = symbol?.assetId ? assets[symbol.assetId] : null;
         const x = layer.gap + columnIndex * (columnWidth + layer.gap);
         const y = layer.gap + rowIndex * (cellHeight + layer.gap);
+        const fit = symbol?.fit ?? "cover";
+        const scale = asset ? (fit === "contain" ? Math.min(columnWidth / asset.width, cellHeight / asset.height) : Math.max(columnWidth / asset.width, cellHeight / asset.height)) : 1;
+        const imageWidth = asset ? asset.width * scale : 0;
+        const imageHeight = asset ? asset.height * scale : 0;
+        const imageX = x + (columnWidth - imageWidth) * (symbol?.focalPoint?.x ?? .5);
+        const imageY = y + (cellHeight - imageHeight) * (symbol?.focalPoint?.y ?? .5);
+        const clipId = `symbol_clip_${layer.id}_${columnIndex}_${rowIndex}`;
         return <g key={`${columnIndex}_${rowIndex}`}>
+          <defs><clipPath id={clipId}><rect x={x} y={y} width={columnWidth} height={cellHeight} rx={4} /></clipPath></defs>
           <rect x={x} y={y} width={columnWidth} height={cellHeight} rx={4} fill={symbol?.color ?? layer.cellColor} stroke="#ffffff55" />
-          <text x={x + columnWidth / 2} y={y + cellHeight / 2 + 5} textAnchor="middle" fill="#292a27" fontSize={Math.min(18, cellHeight / 3)} fontWeight={800}>{symbol?.name?.slice(0, 4) ?? "＋"}</text>
+          {asset?.dataUrl
+            ? <image href={asset.dataUrl} x={imageX} y={imageY} width={imageWidth} height={imageHeight} clipPath={`url(#${clipId})`} />
+            : <text x={x + columnWidth / 2} y={y + cellHeight / 2 + 5} textAnchor="middle" fill="#292a27" fontSize={Math.min(18, cellHeight / 3)} fontWeight={800}>{symbol?.name?.slice(0, 4) ?? "＋"}</text>}
         </g>;
       });
     })}
@@ -188,7 +201,7 @@ function LayerVisual({ layer, assets, selectedIds, onSelect, onContextMenu }: { 
         ? layer.children.map((child: any) => <LayerVisual key={child.id} layer={child} assets={assets} selectedIds={selectedIds} onSelect={onSelect} onContextMenu={onContextMenu} />)
         : layer.type === "image" ? <ImageVisual layer={layer} asset={assets[layer.assetId]} />
           : layer.type === "text" ? <TextVisual layer={layer} />
-            : layer.type === "reelGrid" ? <ReelGridVisual layer={layer} symbols={assets.__symbols ?? {}} /> : <ShapeVisual layer={layer} />}
+            : layer.type === "reelGrid" ? <ReelGridVisual layer={layer} symbols={assets.__symbols ?? {}} assets={assets} /> : <ShapeVisual layer={layer} />}
       {selectedIds.includes(layer.id) && (
         <g className="selection-box">
           <rect width={transform.width} height={transform.height} fill="none" stroke="#d9ff43" strokeWidth={2} vectorEffect="non-scaling-stroke" pointerEvents="none" />
@@ -515,23 +528,37 @@ export function SlotBoardEditor() {
     }));
   }
 
-  async function importImage(file?: File) {
-    if (!file || !selectedLayer || selectedLayer.type === "group") return;
-    if (!file.type.startsWith("image/")) { setNotice("請選擇 PNG、JPG、WebP 等圖片檔"); return; }
+  async function prepareImageAsset(file?: File) {
+    if (!file) return null;
+    if (!file.type.startsWith("image/")) { setNotice("請選擇 PNG、JPG、WebP 等圖片檔"); return null; }
     let dataUrl = await readFileAsDataUrl(file);
     let { width, height } = await readImageSize(dataUrl);
     let blob: Blob = file;
     if (file.size > 20 * 1024 * 1024 || width > 8192 || height > 8192) {
       const accepted = window.confirm(`圖片為 ${width}×${height}、${(file.size / 1024 / 1024).toFixed(1)} MB，超過單張限制。是否建立縮小副本？`);
-      if (!accepted) return;
+      if (!accepted) return null;
       const reduced = await createReducedImage(dataUrl, width, height);
       ({ dataUrl, width, height, blob } = reduced);
-      if (blob.size > 20 * 1024 * 1024) { setNotice("縮小後仍超過 20 MB，請先在圖片工具中降低尺寸"); return; }
+      if (blob.size > 20 * 1024 * 1024) { setNotice("縮小後仍超過 20 MB，請先在圖片工具中降低尺寸"); return null; }
     }
-    if (projectAssetBytes(project) + blob.size > 200 * 1024 * 1024) { setNotice("專案素材總量將超過 200 MB，無法匯入"); return; }
-    const asset = { id: createId("asset"), name: file.name, mimeType: blob.type || file.type, byteLength: blob.size, width, height, dataUrl };
+    if (projectAssetBytes(project) + blob.size > 200 * 1024 * 1024) { setNotice("專案素材總量將超過 200 MB，無法匯入"); return null; }
+    return { id: createId("asset"), name: file.name, mimeType: blob.type || file.type, byteLength: blob.size, width, height, dataUrl };
+  }
+
+  async function importImage(file?: File) {
+    if (!file || !selectedLayer || selectedLayer.type === "group") return;
+    const asset = await prepareImageAsset(file);
+    if (!asset) return;
     commit(replaceLayerWithImage(project, activeSceneId, selectedLayer.id, asset));
     setNotice(`已置換圖片：${file.name}`);
+  }
+
+  async function importSymbolImage(symbolId: string, file?: File) {
+    if (!file || !symbolId) return;
+    const asset = await prepareImageAsset(file);
+    if (!asset) return;
+    commit(replaceSymbolImage(project, symbolId, asset));
+    setNotice(`已更新 Symbol 圖片：${file.name}；所有 Scene 引用已同步`);
   }
 
   function align(mode: string) { commit(alignLayers(project, activeSceneId, selectedIds, mode)); }
@@ -676,7 +703,26 @@ export function SlotBoardEditor() {
               </div>}
             </> : <p className="empty-properties">選取畫布或圖層中的物件，即可精確調整位置與尺寸。</p>}
           </section>
-          <section className="m3-symbol-panel"><div className="m1-panel-title"><span>PROJECT SYMBOLS</span><button onClick={() => { const result = addSymbol(project, `Symbol ${Object.keys(project.symbols).length + 1}`); commit(result.project); }}>＋ 新增</button></div>{Object.values(project.symbols).length ? Object.values(project.symbols).map((symbol: any) => <div className="m3-symbol-row" key={symbol.id}><input type="color" value={symbol.color} onChange={(event) => commit(updateSymbol(project, symbol.id, { color: event.target.value }))} /><input value={symbol.name} onChange={(event) => commit(updateSymbol(project, symbol.id, { name: event.target.value }))} /><small>{Object.values(project.scenes).reduce((count: number, item: any) => { let uses = 0; const visit = (layers: any[]) => layers.forEach((layer) => { if (layer.type === "reelGrid") layer.columns.flat().forEach((id: string) => { if (id === symbol.id) uses += 1; }); if (layer.children) visit(layer.children); }); visit(item.layers); return count + uses; }, 0)} 次引用</small></div>) : <p className="empty-properties">先新增專案 Symbol，再於 Reel Grid 的格子中引用；改名或改色會跨 Scene 同步。</p>}</section>
+          <section className="m3-symbol-panel">
+            <div className="m1-panel-title"><span>PROJECT SYMBOLS</span><button onClick={() => { const result = addSymbol(project, `Symbol ${Object.keys(project.symbols).length + 1}`); commit(result.project); }}>＋ 新增</button></div>
+            {Object.values(project.symbols).length ? Object.values(project.symbols).map((symbol: any) => {
+              const asset = symbol.assetId ? project.assets[symbol.assetId] : null;
+              const uses = Object.values(project.scenes).reduce((count: number, item: any) => {
+                let sceneUses = 0;
+                const visit = (layers: any[]) => layers.forEach((layer) => { if (layer.type === "reelGrid") layer.columns.flat().forEach((id: string) => { if (id === symbol.id) sceneUses += 1; }); if (layer.children) visit(layer.children); });
+                visit(item.layers); return count + sceneUses;
+              }, 0);
+              return <div className="m3-symbol-row" key={symbol.id}>
+                <label className="m8-symbol-preview" title="匯入或更換 Symbol 圖片">
+                  {asset?.dataUrl ? <img src={asset.dataUrl} alt="" /> : <span style={{ background: symbol.color }}>＋</span>}
+                  <input className="visually-hidden" type="file" accept="image/*" onChange={(event) => { void importSymbolImage(symbol.id, event.target.files?.[0]); event.target.value = ""; }} />
+                </label>
+                <div className="m8-symbol-fields"><input value={symbol.name} onChange={(event) => commit(updateSymbol(project, symbol.id, { name: event.target.value }))} /><small>{asset?.name ?? "尚未匯入圖片"} · {uses} 次引用</small></div>
+                <input aria-label={`${symbol.name} placeholder 顏色`} type="color" value={symbol.color} onChange={(event) => commit(updateSymbol(project, symbol.id, { color: event.target.value }))} />
+                {asset && <button className="m8-symbol-remove" title="移除圖片，回到 placeholder" onClick={() => commit(resetSymbolImage(project, symbol.id))}>×</button>}
+              </div>;
+            }) : <p className="empty-properties">先新增專案 Symbol；點預覽格匯入圖片，之後換圖會跨 Scene 同步。</p>}
+          </section>
         </aside>
       </div>
       {contextMenu && <div className="m6-context-menu" role="menu" style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={(event) => event.stopPropagation()}>

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createCanvas, Image } from "@napi-rs/canvas";
 import * as agPsd from "ag-psd";
-import { createProject, createShapeLayer } from "../lib/editor-model.js";
+import { addReelGridLayer, addSymbol, assignReelSymbol, createProject, createShapeLayer, replaceSymbolImage } from "../lib/editor-model.js";
 import { createScenePsd, renderSceneCanvas } from "../lib/export-engine.js";
 
 globalThis.document = { createElement: (name) => {
@@ -66,4 +66,31 @@ test("real Scene PSD preserves transformed group pixels, opacity and background 
     { left: expectedBounds.left, top: expectedBounds.top, right: expectedBounds.right, bottom: expectedBounds.bottom },
   );
   assert.equal(actualBounds.maxAlpha, 255, "leaf opacity must stay in the PSD property, not be baked into pixels");
+});
+
+test("project Symbol images render inside Reel Grid pixels in the exported PSD", async () => {
+  let project = createProject("Symbol image regression");
+  const sceneId = project.sceneOrder[0];
+  const symbolResult = addSymbol(project, "Wild"); project = symbolResult.project;
+  const source = createCanvas(4, 4), sourceContext = source.getContext("2d");
+  sourceContext.fillStyle = "#ef321e"; sourceContext.fillRect(0, 0, 4, 4);
+  const dataUrl = source.toDataURL("image/png");
+  project = replaceSymbolImage(project, symbolResult.symbolId, {
+    id: "asset_symbol_red", name: "wild-red.png", mimeType: "image/png", byteLength: dataUrl.length, width: 4, height: 4, dataUrl,
+  });
+  project = addReelGridLayer(project, sceneId, [1]);
+  const grid = project.scenes[sceneId].layers[0];
+  project = assignReelSymbol(project, sceneId, grid.id, 0, 0, symbolResult.symbolId);
+
+  const bytes = await createScenePsd(project, sceneId);
+  const parsed = agPsd.readPsd(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), {
+    skipThumbnail: true, skipCompositeImageData: true, useImageData: true,
+  });
+  const parsedGrid = findLayer(parsed.children, grid.name);
+  assert.ok(parsedGrid?.imageData);
+  const x = Math.round(grid.transform.x + grid.transform.width / 2);
+  const y = Math.round(grid.transform.y + grid.transform.height / 2);
+  const offset = (y * parsedGrid.imageData.width + x) * 4;
+  const pixel = parsedGrid.imageData.data.slice(offset, offset + 4);
+  assert.ok(pixel[0] > 220 && pixel[1] < 80 && pixel[2] < 80 && pixel[3] > 240, `expected red Symbol pixel, got ${[...pixel]}`);
 });

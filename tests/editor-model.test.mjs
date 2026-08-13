@@ -19,7 +19,9 @@ import {
   projectAssetBytes,
   redoHistory,
   replaceLayerWithImage,
+  replaceSymbolImage,
   resetImagePlaceholder,
+  resetSymbolImage,
   renameScene,
   reorderScene,
   serializeProject,
@@ -60,11 +62,19 @@ test("variable reel grids and project symbols stay linked across scenes", () => 
   project = assignReelSymbol(project, secondResult.sceneId, secondGrid.id, 2, 1, symbolResult.symbolId);
   project = updateReelColumn(project, firstScene, firstGrid.id, 0, 5);
   project = updateSymbol(project, symbolResult.symbolId, { name: "Wild 正式版", color: "#eeeeee" });
+  const asset = { id: "asset_wild", name: "wild.png", mimeType: "image/png", byteLength: 12, width: 2, height: 2, dataUrl: "data:image/png;base64,AAAA" };
+  project = replaceSymbolImage(project, symbolResult.symbolId, asset);
   const restored = deserializeProject(serializeProject(project));
   assert.equal(restored.scenes[firstScene].layers[0].columns[0].length, 5);
   assert.equal(restored.scenes[firstScene].layers[0].columns[0][0], symbolResult.symbolId);
   assert.equal(restored.scenes[secondResult.sceneId].layers[0].columns[2][1], symbolResult.symbolId);
   assert.equal(restored.symbols[symbolResult.symbolId].name, "Wild 正式版");
+  assert.equal(restored.symbols[symbolResult.symbolId].assetId, asset.id);
+  assert.equal(restored.assets[asset.id].name, "wild.png");
+
+  const reset = resetSymbolImage(restored, symbolResult.symbolId);
+  assert.equal(reset.symbols[symbolResult.symbolId].assetId, null);
+  assert.equal(reset.assets[asset.id], undefined);
 });
 
 test("flow positions, branching connections and anchored annotations persist", () => {

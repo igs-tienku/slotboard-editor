@@ -40,6 +40,8 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /GRAYSCALE_PALETTE/);
   assert.match(editor, /SHAPE APPEARANCE/);
   assert.match(editor, /最高焦點/);
+  assert.match(editor, /replaceSymbolImage/);
+  assert.match(editor, /所有 Scene 引用已同步/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);

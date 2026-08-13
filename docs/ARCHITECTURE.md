@@ -299,6 +299,8 @@ project.slotboard
 
 完成紀錄（2026-08-13）：已實作可變軸數及逐軸列數 Reel Grid、3-4-4-4-3 預設、專案級 Symbol 定義與跨 Scene 引用、Symbol 同步改名／改色、可拖曳流程總覽、自由文字連線、分支與迴圈、內容式 Scene 縮圖，以及畫布外 Scene／物件錨定標註。Schema 升級至 v3；Reel、Symbol、流程座標、分支連線與標註保存重開測試通過。
 
+補完紀錄（2026-08-13）：Symbol 定義已支援專案資產引用、圖片換置、移除與孤兒素材清理。Reel Grid 的編輯畫布、Scene PSD 與 PDF 均從同一 Symbol registry 解析圖片；跨 Scene 保存與 PSD 像素輸出已有自動測試。
+
 ### M4：可攜專案與模板（已完成）
 
 - `.slotboard` 匯出／匯入。
