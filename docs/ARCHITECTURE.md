@@ -311,6 +311,8 @@ project.slotboard
 
 補完紀錄（2026-08-13）：高於目前 schema 的結構相容專案改以唯讀模式開啟，可建立並匯出目前 schema 的可編輯副本。套件 manifest 已改用實際工具版本，並以 FNV-1a 內容雜湊驗證 JSON 與每一素材；缺少雜湊的舊套件維持向後相容。
 
+補完紀錄（2026-08-13）：圖片縮小、Scene PSD、批次 PSD ZIP 與 PDF 已加入 Worker／OffscreenCanvas 優先路徑及主執行緒相容回退；Worker 以獨立靜態資產建置。Scene 縮圖改用 revision keyed SVG cache，設有 200 份上限。離屏 PSD 與 Worker 資產均納入自動測試。
+
 ### M4：可攜專案與模板（已完成）
 
 - `.slotboard` 匯出／匯入。

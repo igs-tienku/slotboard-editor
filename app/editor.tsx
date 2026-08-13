@@ -57,6 +57,7 @@ import { loadRecoveryProject, saveRecoveryProject } from "../lib/recovery-storag
 import { buildPrototypePsd, PROTOTYPE_FILE_NAME } from "../lib/psd-prototype.js";
 import { createProjectPackage, createTemplatePackage, openProjectPackage, openTemplatePackage } from "../lib/project-package.js";
 import { buildSceneFileNames, createProjectPdf, createPsdZip, createScenePsd } from "../lib/export-engine.js";
+import { runWorkerTask, supportsSlotBoardWorker } from "../lib/worker-client";
 
 const LEGACY_RECOVERY_KEY = "slotboard:m1-recovery";
 const tools = [
@@ -97,6 +98,14 @@ function readImageSize(dataUrl: string) {
 }
 
 async function createReducedImage(dataUrl: string, width: number, height: number) {
+  if (supportsSlotBoardWorker()) {
+    try {
+      const reduced = await runWorkerTask("resizeImage", { dataUrl, width, height });
+      return { ...reduced, blob: await (await fetch(reduced.dataUrl)).blob() };
+    } catch {
+      // Continue with the compatible main-thread path.
+    }
+  }
   const scale = Math.min(1, 8192 / width, 8192 / height);
   const targetWidth = Math.max(1, Math.round(width * scale));
   const targetHeight = Math.max(1, Math.round(height * scale));
@@ -234,15 +243,25 @@ function LayerTree({ layers, selectedIds, onSelect, onToggle, onContextMenu, dep
   ));
 }
 
+const sceneThumbnailCache = new Map<string, string>();
 function SceneThumbnail({ scene }: { scene: any }) {
-  const render = (layers: any[]): any[] => [...layers].reverse().flatMap((layer): any[] => {
-    if (!layer.visible) return [];
-    if (layer.type === "group") return render(layer.children);
-    const transform = layer.transform;
-    const fill = layer.type === "text" ? "#eeeeea" : layer.type === "image" ? "#b8c0aa" : layer.type === "reelGrid" ? "#777872" : layer.fill === "transparent" ? "#c8c9c4" : layer.fill;
-    return [<rect key={layer.id} x={transform.x} y={transform.y} width={transform.width} height={transform.height} fill={fill ?? "#aaa"} stroke={layer.stroke ?? "#ffffff55"} strokeWidth={Math.max(1, layer.strokeWidth ?? 1)} />];
-  });
-  return <svg className="m3-scene-thumbnail" viewBox={`0 0 ${scene.width} ${scene.height}`}><rect width={scene.width} height={scene.height} fill="#3f403c" />{render(scene.layers)}</svg>;
+  const key = `${scene.id}:${scene.thumbnailRevision}:${scene.width}x${scene.height}`;
+  let source = sceneThumbnailCache.get(key);
+  if (!source) {
+    const rectangles: string[] = [];
+    const render = (layers: any[], offsetX = 0, offsetY = 0) => [...layers].reverse().forEach((layer: any) => {
+      if (!layer.visible) return;
+      if (layer.type === "group") { render(layer.children, offsetX + layer.transform.x, offsetY + layer.transform.y); return; }
+      const transform = layer.transform;
+      const fill = layer.type === "text" ? "#eeeeea" : layer.type === "image" ? "#b8c0aa" : layer.type === "reelGrid" ? "#777872" : layer.fill === "transparent" ? "#c8c9c4" : layer.fill;
+      rectangles.push(`<rect x="${offsetX + transform.x}" y="${offsetY + transform.y}" width="${transform.width}" height="${transform.height}" fill="${fill ?? "#aaa"}" stroke="${layer.stroke ?? "#ffffff55"}" stroke-width="${Math.max(1, layer.strokeWidth ?? 1)}"/>`);
+    });
+    render(scene.layers);
+    source = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${scene.width} ${scene.height}"><rect width="100%" height="100%" fill="#3f403c"/>${rectangles.join("")}</svg>`)}`;
+    sceneThumbnailCache.set(key, source);
+    if (sceneThumbnailCache.size > 200) sceneThumbnailCache.delete(sceneThumbnailCache.keys().next().value as string);
+  }
+  return <img className="m3-scene-thumbnail" src={source} alt="" />;
 }
 
 function layerCenter(layers: any[], targetId: string, offsetX = 0, offsetY = 0): { x: number; y: number } | null {
@@ -598,7 +617,9 @@ export function SlotBoardEditor() {
   async function exportSinglePsd() {
     setExportBusy(true);
     try {
-      const bytes = await createScenePsd(project, activeSceneId);
+      let bytes;
+      try { bytes = supportsSlotBoardWorker() ? await runWorkerTask("scenePsd", { project, sceneId: activeSceneId }) : await createScenePsd(project, activeSceneId); }
+      catch { setNotice("背景輸出不可用，已改用相容模式"); bytes = await createScenePsd(project, activeSceneId); }
       const file = buildSceneFileNames(project).find((item: any) => item.sceneId === activeSceneId);
       downloadBytes(bytes, `${file?.base ?? "Scene"}.psd`, "image/vnd.adobe.photoshop");
     } catch (error) { setNotice(`PSD 輸出失敗：${error instanceof Error ? error.message : "未知錯誤"}`); }
@@ -607,14 +628,24 @@ export function SlotBoardEditor() {
 
   async function exportAllPsd() {
     setExportBusy(true);
-    try { downloadBytes(await createPsdZip(project), `${project.name}_PSD.zip`); }
+    try {
+      let bytes;
+      try { bytes = supportsSlotBoardWorker() ? await runWorkerTask("psdZip", { project }) : await createPsdZip(project); }
+      catch { setNotice("背景輸出不可用，已改用相容模式"); bytes = await createPsdZip(project); }
+      downloadBytes(bytes, `${project.name}_PSD.zip`);
+    }
     catch (error) { setNotice(`批次 PSD 失敗：${error instanceof Error ? error.message : "未知錯誤"}`); }
     finally { setExportBusy(false); }
   }
 
   async function exportPdf() {
     setExportBusy(true);
-    try { downloadBytes(await createProjectPdf(project), `${project.name}_分鏡.pdf`, "application/pdf"); }
+    try {
+      let bytes;
+      try { bytes = supportsSlotBoardWorker() ? await runWorkerTask("pdf", { project }) : await createProjectPdf(project); }
+      catch { setNotice("背景輸出不可用，已改用相容模式"); bytes = await createProjectPdf(project); }
+      downloadBytes(bytes, `${project.name}_分鏡.pdf`, "application/pdf");
+    }
     catch (error) { setNotice(`PDF 輸出失敗：${error instanceof Error ? error.message : "未知錯誤"}`); }
     finally { setExportBusy(false); }
   }
@@ -880,7 +911,7 @@ export function SlotBoardEditor() {
           <div className="m10-setup-actions"><button onClick={() => setSetupMode(null)}>取消</button><button className="primary" onClick={applySetup}>{setupMode === "project" ? "建立專案" : "新增 Scene"}</button></div>
         </section>
       </div>}
-      {showExport && <div className="m5-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !exportBusy) setShowExport(false); }}><section className="m5-export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="m5-modal-head"><div><small>EXPORT PREVIEW</small><h2 id="export-title">正式輸出</h2></div><button aria-label="關閉輸出視窗" onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress" role="status">正在逐層光柵化與封裝，請勿關閉頁面…</p>}</section></div>}
+      {showExport && <div className="m5-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !exportBusy) setShowExport(false); }}><section className="m5-export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="m5-modal-head"><div><small>EXPORT PREVIEW · {supportsSlotBoardWorker() ? "背景處理" : "相容模式"}</small><h2 id="export-title">正式輸出</h2></div><button aria-label="關閉輸出視窗" onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress" role="status">正在背景逐層光柵化與封裝，可繼續檢視目前專案…</p>}</section></div>}
     </main>
   );
 }

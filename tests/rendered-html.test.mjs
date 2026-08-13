@@ -8,6 +8,7 @@ test("build emits the GitHub Pages-compatible application", async () => {
   assert.match(html, /\.\/assets\//);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
+  await access(new URL("../dist/assets/export-worker.js", import.meta.url));
 });
 
 test("M6.1 editor keeps safe transforms, context actions and production exports available", async () => {
@@ -58,6 +59,9 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /makeEditableCopy/);
   assert.match(editor, /唯讀模式/);
   assert.match(editor, /另存可編輯副本/);
+  assert.match(editor, /runWorkerTask/);
+  assert.match(editor, /sceneThumbnailCache/);
+  assert.match(editor, /背景處理/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);

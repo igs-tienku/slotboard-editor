@@ -94,3 +94,19 @@ test("project Symbol images render inside Reel Grid pixels in the exported PSD",
   const pixel = parsedGrid.imageData.data.slice(offset, offset + 4);
   assert.ok(pixel[0] > 220 && pixel[1] < 80 && pixel[2] < 80 && pixel[3] > 240, `expected red Symbol pixel, got ${[...pixel]}`);
 });
+
+test("Scene PSD renders with an OffscreenCanvas-style worker surface", async () => {
+  const originalDocument = globalThis.document, originalOffscreenCanvas = globalThis.OffscreenCanvas;
+  try {
+    delete globalThis.document;
+    globalThis.OffscreenCanvas = class { constructor(width, height) { return createCanvas(width, height); } };
+    const project = createProject("Worker surface"), sceneId = project.sceneOrder[0];
+    const bytes = await createScenePsd(project, sceneId);
+    const parsed = agPsd.readPsd(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), { skipThumbnail: true, skipCompositeImageData: true, useImageData: true });
+    assert.equal(parsed.width, project.scenes[sceneId].width);
+    assert.equal(parsed.children.at(-1).name, "背景");
+  } finally {
+    globalThis.document = originalDocument;
+    globalThis.OffscreenCanvas = originalOffscreenCanvas;
+  }
+});

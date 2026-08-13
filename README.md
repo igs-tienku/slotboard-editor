@@ -1,6 +1,6 @@
 # SlotBoard 分鏡編輯器
 
-此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M13 編輯器。
+此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M14 編輯器。
 
 ## 已完成
 
@@ -115,6 +115,13 @@ npm run test
 - 「另存可編輯副本」會保留可理解的資料，建立目前 schema 的新專案 ID 並立即匯出備份。
 - `.slotboard`／`.slottemplate` manifest 會寫入實際工具版本、JSON 內容雜湊及每個素材雜湊。
 - 匯入會拒絕 JSON 被修改或素材內容遭同長度破壞的套件；舊版無雜湊套件仍可開啟。
+
+## M14 背景處理與縮圖快取
+
+- 支援 Worker／OffscreenCanvas 時，單 Scene PSD、批次 PSD ZIP、PDF 與超標圖片縮小會在背景執行。
+- 瀏覽器不支援或 Worker 發生錯誤時會自動退回相容模式，不會讓輸出功能失效。
+- Worker 以獨立 GitHub Pages 資產建置；正式 Scene PSD 已通過無 `document` 的離屏畫布測試。
+- Scene 縮圖改為依 `scene.id + thumbnailRevision` 快取的低成本 SVG，最多保留 200 份，避免流程總覽重複建立大量節點。
 
 測試會完成 TypeScript 檢查、GitHub Pages 相容打包、重新產生 PSD，並驗證尺寸、中文圖層名稱、巢狀群組、順序、隱藏狀態及透明度。
 

@@ -24,6 +24,19 @@ await build({
   define: { "process.env.NODE_ENV": '"production"' },
 });
 
+await build({
+  entryPoints: [resolve(projectRoot, "src/export-worker.ts")],
+  bundle: true,
+  outfile: resolve(outputRoot, "assets/export-worker.js"),
+  format: "esm",
+  platform: "browser",
+  target: ["chrome111", "edge111"],
+  minify: true,
+  sourcemap: true,
+  loader: { ".ts": "ts" },
+  define: { "process.env.NODE_ENV": '"production"' },
+});
+
 await cp(resolve(projectRoot, "public"), outputRoot, { recursive: true });
 
 const sourceHtml = await readFile(resolve(projectRoot, "index.html"), "utf8");
@@ -33,4 +46,4 @@ const outputHtml = sourceHtml.replace(
 );
 await writeFile(resolve(outputRoot, "index.html"), outputHtml, "utf8");
 
-console.log("Built SlotBoard M13 editor in dist/");
+console.log("Built SlotBoard M14 editor in dist/");
