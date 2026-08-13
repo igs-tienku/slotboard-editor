@@ -1,0 +1,239 @@
+﻿{
+    "round":  2,
+    "review_mode":  "codex-internal",
+    "rubric_version":  "1.0",
+    "rubric_sha256":  "98E0DFF8347619C742190B26C1F7AC035409D5E50AC7305D9872F880425C2007",
+    "computed_verdict":  "CHANGES_REQUIRED",
+    "passing_score":  85,
+    "passing_rule":  "all",
+    "objective_checks":  [
+                             {
+                                 "name":  "完整建置、38 項測試、lint 與 benchmark",
+                                 "status":  "PASS",
+                                 "evidence":  "npm run test 38/38、npm run lint 0 error、npm run benchmark 2/2。"
+                             },
+                             {
+                                 "name":  "互動、模板、ZIP 與字型新增回歸",
+                                 "status":  "PASS",
+                                 "evidence":  "雙軸數學、輕點門檻、單筆 undo wiring、ID/錨點碰撞、預解壓上限、字型資產與兩種 runtime 路徑均通過。"
+                             },
+                             {
+                                 "name":  "Chrome 或 Edge 實際互動矩陣",
+                                 "status":  "FAIL",
+                                 "evidence":  "目前 Browser runtime 沒有可連線瀏覽器，無法以真實 pointer 完成 rubric 要求的人工證據。"
+                             }
+                         ],
+    "failed_objective_checks":  [
+                                    "Chrome 或 Edge 實際互動矩陣"
+                                ],
+    "scores":  [
+                   {
+                       "id":  "C1",
+                       "name":  "啟動、部署與版本可追溯性",
+                       "score":  96,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "0.18.0 可能因字型載入或新資產路徑而無法建置。",
+                                                  "result":  "完整 build/test 通過，dist 包含相對 fonts 路徑；待推送後再確認正式站。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "package.json；scripts/build.mjs；tests/rendered-html.test.mjs",
+                                            "observation":  "版本、資產、Worker 與 Pages 建置一致。",
+                                            "effect":  "部署前品質閘門完整。"
+                                        }
+                                    ],
+                       "problems":  [
+
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C2",
+                       "name":  "基礎編輯操作與畫布導航",
+                       "score":  84,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "流程垂直平移算法只處理 X。",
+                                                  "result":  "nextScrollPan 對 left/top 對稱運算，四方向測試通過。"
+                                              },
+                                              {
+                                                  "candidate":  "流程卡片一次拖曳仍產生多筆 undo。",
+                                                  "result":  "pointermove 只用 baseHistory 預覽，pointerup 才一次 commitHistory；靜態 wiring 回歸通過。"
+                                              },
+                                              {
+                                                  "candidate":  "實際 CSS、pointer capture 或瀏覽器事件整合仍可能有阻斷。",
+                                                  "result":  "沒有可連線瀏覽器，無法反證。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "lib/interaction-math.js；tests/interaction-math.test.mjs；app/editor.tsx",
+                                            "observation":  "雙軸、縮放倍率、4px 門檻、preview/commit 交易皆有決定性回歸。",
+                                            "effect":  "已消除第一輪可由程式證明的缺陷。"
+                                        },
+                                        {
+                                            "location":  "objective-checks-round-2.md",
+                                            "observation":  "Chrome／Edge 實際互動仍不可取得。",
+                                            "effect":  "依 rubric 不足以達 85 分。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "缺少至少一個正式支援瀏覽器的真實四向、變形、Undo 與下載操作證據。"
+                                    ],
+                       "required_changes":  [
+                                                "在部署後由 Windows Chrome 或 Edge 執行 docs/M6-QA.md 的 0.18.0 基礎操作矩陣並回報結果；通過後才能封閉本項。"
+                                            ]
+                   },
+                   {
+                       "id":  "C3",
+                       "name":  "Scene 建構與企劃功能承諾",
+                       "score":  92,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "Noto 仍只是名稱。",
+                                                  "result":  "五個實際 WOFF2 與 OFL-1.1 隨產品提供，主畫面與 Worker 載入器有測試。"
+                                              },
+                                              {
+                                                  "candidate":  "模板錨點在 ID 更新後失效。",
+                                                  "result":  "Scene 複製與 template 測試確認 annotation target 指向新 layer ID。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "public/fonts；lib/builtin-fonts.js；tests/builtin-fonts.test.mjs；tests/project-package.test.mjs",
+                                            "observation":  "字型與模板反例已補正。",
+                                            "effect":  "第一輪核心功能缺口已關閉。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "整體功能便利性仍待歷史案例人工計時。"
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C4",
+                       "name":  "專案資料、安全與恢復可靠性",
+                       "score":  94,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "template ID 碰撞覆寫目標資料。",
+                                                  "result":  "所有引用資源改用新 ID，測試保留目標同 ID 資源並驗證 imported references。"
+                                              },
+                                              {
+                                                  "candidate":  "ZIP bomb 先解壓才拒絕。",
+                                                  "result":  "fflate filter 依中央目錄 originalSize 與檔數在配置內容前拒絕；單元測試涵蓋兩種上限。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "lib/editor-model.js；lib/project-package.js；tests/project-package.test.mjs",
+                                            "observation":  "正常、碰撞、錨點、未引用資源與預檢均有回歸。",
+                                            "effect":  "第一輪資料可靠性風險已修正。"
+                                        }
+                                    ],
+                       "problems":  [
+
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C5",
+                       "name":  "PSD、批次 PSD 與 PDF 輸出契約",
+                       "score":  90,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "字型載入補強破壞 PSD 或 Worker。",
+                                                  "result":  "全部 PSD round-trip、Symbol 像素與 OffscreenCanvas 測試維持通過。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "tests/scene-psd-roundtrip.test.mjs；scripts/verify-psd-prototype.mjs",
+                                            "observation":  "PSD 結構與像素回歸全部綠燈。",
+                                            "effect":  "輸出契約未因修正退化。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "Photoshop 與大量長標註 PDF 仍待人工驗收。"
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C6",
+                       "name":  "效能、可用性與錯誤韌性",
+                       "score":  89,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "字型與新增防護使輸出超出預算。",
+                                                  "result":  "benchmark 2/2，實際輸出約 588 ms；正式字型約 4.77 MB。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "npm run benchmark；dist/fonts",
+                                            "observation":  "效能與建置體積仍在合理範圍。",
+                                            "effect":  "品質補強沒有造成明顯效能回歸。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "不同硬體長時間瀏覽器矩陣待驗。"
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C7",
+                       "name":  "規劃文件一致性與驗收誠實度",
+                       "score":  96,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "文件仍把人工待驗寫成完成。",
+                                                  "result":  "M6-QA 新增自動通過、人工通過、人工待驗、範圍外四態矩陣。"
+                                              },
+                                              {
+                                                  "candidate":  "字型與版本宣告仍不一致。",
+                                                  "result":  "README、ARCHITECTURE、M6-QA、package 與 manifest 同步為 0.18.0 並列實際 WOFF2/OFL。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "README.md；docs/ARCHITECTURE.md；docs/M6-QA.md；THIRD_PARTY_NOTICES.md",
+                                            "observation":  "完成狀態、授權、版本與人工待辦一致。",
+                                            "effect":  "第一輪文件誠實度缺口已關閉。"
+                                        }
+                                    ],
+                       "problems":  [
+
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   }
+               ],
+    "failed_criteria":  [
+                            "C2"
+                        ],
+    "hard_failures":  [
+
+                      ],
+    "computed_average_score":  91.57,
+    "reviewed_artifacts":  [
+                               {
+                                   "path":  "frozen-deliverable-round-2.md",
+                                   "sha256":  "FADA3C2D0CA46C6116602BCDDB7688D9A4CDA15C0A0BF3A8B0AEBDA14F17A395"
+                               }
+                           ],
+    "summary":  "第二輪產品修正已使 C3、C4、C7 通過，PSD 與效能維持通過。唯一未封閉項目是 C2 的正式瀏覽器人工互動證據；依 all 規則與失敗的客觀檢查，整體仍須變更／補證據。",
+    "raw_review":  "D:\\codex_playground\\分鏡工具\\output\\review\\project-quality-audit-2026-08-13\\review-round-2.json"
+}

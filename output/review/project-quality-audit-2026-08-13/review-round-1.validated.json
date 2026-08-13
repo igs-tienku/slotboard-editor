@@ -1,0 +1,289 @@
+﻿{
+    "round":  1,
+    "review_mode":  "codex-internal",
+    "rubric_version":  "1.0",
+    "rubric_sha256":  "98E0DFF8347619C742190B26C1F7AC035409D5E50AC7305D9872F880425C2007",
+    "computed_verdict":  "CHANGES_REQUIRED",
+    "passing_score":  85,
+    "passing_rule":  "all",
+    "objective_checks":  [
+                             {
+                                 "name":  "完整建置與 30 項測試",
+                                 "status":  "PASS",
+                                 "evidence":  "npm run test 完成；30 pass、0 fail，含 PSD 技術原型與真實 Scene round-trip。"
+                             },
+                             {
+                                 "name":  "靜態品質檢查",
+                                 "status":  "PASS",
+                                 "evidence":  "npm run lint 完成且無錯誤。"
+                             },
+                             {
+                                 "name":  "資料、渲染與輸出壓測",
+                                 "status":  "PASS",
+                                 "evidence":  "npm run benchmark 2/2；Canvas/PSD ZIP/PDF 570.6 ms，50 Scene × 100 layer 往返 34.4 ms。"
+                             },
+                             {
+                                 "name":  "正式站版本與資產",
+                                 "status":  "PASS",
+                                 "evidence":  "HTTP 200；app.css 與 app.js 皆帶 v=0.17.1。"
+                             },
+                             {
+                                 "name":  "Chrome 或 Edge 實際互動矩陣",
+                                 "status":  "FAIL",
+                                 "evidence":  "Browser runtime 無任何可連線瀏覽器，無法取得四向拖曳、變形與下載的真實 pointer 證據。"
+                             }
+                         ],
+    "failed_objective_checks":  [
+                                    "Chrome 或 Edge 實際互動矩陣"
+                                ],
+    "scores":  [
+                   {
+                       "id":  "C1",
+                       "name":  "啟動、部署與版本可追溯性",
+                       "score":  97,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "正式站可能仍載入舊版或 Vite 專用路徑而空白。",
+                                                  "result":  "HTTP 200，HTML 指向相對路徑且 CSS/JS 都是 0.17.1；完整 build/test 通過。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "objective-checks-round-1.md；package.json；scripts/build.mjs",
+                                            "observation":  "正式站、建置、測試、版本與提交一致。",
+                                            "effect":  "啟動與部署具可追溯客觀證據。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "GitHub Actions 有 Node 20 action 被強制以 Node 24 執行的維運警告，但不影響目前部署。"
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C2",
+                       "name":  "基礎編輯操作與畫布導航",
+                       "score":  72,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "流程畫布只改 CSS，垂直拖曳仍可能被 scrollTop 邊界夾住。",
+                                                  "result":  "程式同時更新 scrollLeft/scrollTop，CSS 有高度約束，但沒有可執行 X/Y 回歸或瀏覽器證據。"
+                                              },
+                                              {
+                                                  "candidate":  "拖曳一次後 Undo 應回到拖曳前位置。",
+                                                  "result":  "FlowOverview 每次 pointermove 呼叫 onMove，而父層每次 commitHistory，違反架構的一次拖曳一個命令原則。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "app/editor.tsx:313-327, 341, 883",
+                                            "observation":  "流程平移有 X/Y 更新；Scene 卡片拖曳的每個 pointermove 都提交歷史。",
+                                            "effect":  "四向算法存在，但 Undo 交易與操作證據不足。"
+                                        },
+                                        {
+                                            "location":  "app/editor.tsx:519-649；app/globals.css",
+                                            "observation":  "Scene 使用 SVG CTM、4px 門檻、邊界、Shift 約束與 pan state；流程 CSS 有 min-height/height/overflow。",
+                                            "effect":  "大部分防護已實作，但仍需可執行回歸與人工互動。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "沒有瀏覽器實際互動證據。",
+                                        "流程 Scene 卡片拖曳會污染 undo history。",
+                                        "垂直流程平移只有靜態 CSS 規則測試。"
+                                    ],
+                       "required_changes":  [
+                                                "將流程 Scene 卡片拖曳改成 pointerup 才提交一個歷史交易。",
+                                                "抽出並測試 Scene/流程的雙軸拖曳、縮放換算、輕點門檻與歷史提交規則。",
+                                                "在可連線 Chrome 或 Edge 補四向互動矩陣後才能通過本項。"
+                                            ]
+                   },
+                   {
+                       "id":  "C3",
+                       "name":  "Scene 建構與企劃功能承諾",
+                       "score":  82,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "字型選單宣稱內建，但 Windows 沒有該字型時實際回退。",
+                                                  "result":  "專案沒有 font 檔與 @font-face；只有 Noto family 名稱及 OFL 字串。"
+                                              },
+                                              {
+                                                  "candidate":  "模板內的物件錨定標註在匯入後仍指向正確新圖層。",
+                                                  "result":  "scene.layers 會 renew ID，但 annotations.targetLayerId 沒有重映射。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "feature-matrix-round-1.md；app/editor.tsx；lib/editor-model.js",
+                                            "observation":  "尺寸、模板、圖形、排版、圖片、Reel、Symbol、標註與流程均有主要 UI/模型路徑。",
+                                            "effect":  "功能廣度高，但模板錨點與字型承諾有實質缺口。"
+                                        },
+                                        {
+                                            "location":  "rg font-face/Noto 結果；lib/editor-model.js:559-572",
+                                            "observation":  "無字型資產；模板僅重建 layer ID。",
+                                            "effect":  "文字輸出可因系統字型而變，匯入標註可失去目標。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "三類 Noto 尚未真正內建。",
+                                        "模板匯入會破壞物件錨定標註。"
+                                    ],
+                       "required_changes":  [
+                                                "隨附已核准授權的三類開源字型並在畫布及輸出前確保載入，或修正文案與承諾。",
+                                                "匯入模板時建立舊新 layer ID map 並重映射 annotation target。",
+                                                "增加含錨定標註的 template round-trip 測試。"
+                                            ]
+                   },
+                   {
+                       "id":  "C4",
+                       "name":  "專案資料、安全與恢復可靠性",
+                       "score":  78,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "匯入模板不會覆寫目標專案既有 Symbol 或 asset。",
+                                                  "result":  "Object.assign 直接以模板 ID 覆寫 next.symbols/next.assets；沒有 ID remap。"
+                                              },
+                                              {
+                                                  "candidate":  "ZIP bomb 在大量記憶體配置前被拒絕。",
+                                                  "result":  "unzipSync 先完整解壓，再檢查 entries 與總 bytes。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "lib/editor-model.js:559-572；lib/project-package.js:84-105",
+                                            "observation":  "模板採直接 ID 合併；包防護在解壓完成後執行。",
+                                            "effect":  "存在資料碰撞與惡意／異常包記憶體風險。"
+                                        },
+                                        {
+                                            "location":  "tests/project-package.test.mjs",
+                                            "observation":  "正常 30 Scene、損壞、雜湊竄改與 fresh layer IDs 已測，但未測模板 collision/annotation 及預解壓上限。",
+                                            "effect":  "既有測試沒有攔截上述反例。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "模板 Symbol/asset ID 碰撞可能污染目標專案。",
+                                        "ZIP 限制未在解壓配置前生效。"
+                                    ],
+                       "required_changes":  [
+                                                "模板匯入重映射 Scene、layer、annotation、Symbol 與 asset ID，且只帶入引用資源。",
+                                                "使用解壓 filter 的 metadata 在解壓前限制檔案數與宣告解壓大小，並補拒絕測試。"
+                                            ]
+                   },
+                   {
+                       "id":  "C5",
+                       "name":  "PSD、批次 PSD 與 PDF 輸出契約",
+                       "score":  89,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "背景或父群組 transform 在 PSD 中錯誤。",
+                                                  "result":  "真實 Scene round-trip 逐像素檢查 transform、opacity、背景順序；Symbol 圖片亦有像素測試。"
+                                              },
+                                              {
+                                                  "candidate":  "自動解析成功被誤寫成 Photoshop 相容通過。",
+                                                  "result":  "文件明列 Photoshop 人工矩陣待辦；使用者只確認 Krita。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "tests/scene-psd-roundtrip.test.mjs；tests/export-engine.test.mjs；scripts/verify-psd-prototype.mjs",
+                                            "observation":  "尺寸、中文、群組、順序、透明度、hidden、transform、Symbol 像素與檔名均有檢查。",
+                                            "effect":  "PSD 核心契約有強客觀證據。"
+                                        },
+                                        {
+                                            "location":  "docs/M6-QA.md；使用者 Krita 回報",
+                                            "observation":  "Krita 已開檔；Photoshop 與長標註 PDF 人工 QA 尚待補。",
+                                            "effect":  "達自動與 Krita 門檻，但未達最高分。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "目標 Photoshop 版本矩陣及三種複雜度仍待人工驗收。",
+                                        "大量／長標註 PDF 缺視覺人工證據。"
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C6",
+                       "name":  "效能、可用性與錯誤韌性",
+                       "score":  88,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "效能測試只測 JSON，沒有正式輸出。",
+                                                  "result":  "benchmark 同時執行實際 Canvas、3 Scene PSD ZIP 與 PDF，另測 50×100 資料往返。"
+                                              },
+                                              {
+                                                  "candidate":  "重工作業全部阻塞主執行緒。",
+                                                  "result":  "worker-client 有 Worker/OffscreenCanvas 路徑與主執行緒回退，worker 輸出亦有測試。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "tests/performance*.test.mjs；lib/worker-client.ts；src/export-worker.ts",
+                                            "observation":  "資料、渲染、輸出與 worker surface 均有客觀檢查，縮圖快取限制 200。",
+                                            "effect":  "典型與壓力資料的技術防護充足。"
+                                        },
+                                        {
+                                            "location":  "objective-checks-round-1.md",
+                                            "observation":  "benchmark 2/2 通過，但無不同硬體長時間瀏覽器記憶體資料。",
+                                            "effect":  "可達標但不給最高分。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "缺少 Chrome/Edge 長時間操作、下載與記憶體人工矩陣。"
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C7",
+                       "name":  "規劃文件一致性與驗收誠實度",
+                       "score":  79,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "文件把未驗的人工項目寫成已通過。",
+                                                  "result":  "ARCHITECTURE 與 M6-QA 有列出 Chrome/Edge、Photoshop、4/5 案例待辦，整體誠實。"
+                                              },
+                                              {
+                                                  "candidate":  "已完成清單與實際資產完全一致。",
+                                                  "result":  "README/ARCHITECTURE 稱三類 Noto 已實作，實際未隨附；M6-QA 版本仍為 0.7.0。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "docs/PRD.md；docs/ARCHITECTURE.md；docs/M6-QA.md；README.md",
+                                            "observation":  "主要人工驗收缺口有揭露，但版本與字型完成宣告不一致。",
+                                            "effect":  "文件可作規劃基準，尚需修正完成語意與版本。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "M6-QA 版本落後。",
+                                        "未隨附字型卻被寫成已完成／內建。",
+                                        "缺一份最新的自動、人工通過、人工待驗、範圍外四態矩陣。"
+                                    ],
+                       "required_changes":  [
+                                                "同步 README、ARCHITECTURE、M6-QA 與實際版本及字型狀態。",
+                                                "加入最新驗收狀態矩陣與基本操作回歸清單，避免把自動實作完成誤讀成產品人工驗收完成。"
+                                            ]
+                   }
+               ],
+    "failed_criteria":  [
+                            "C2",
+                            "C3",
+                            "C4",
+                            "C7"
+                        ],
+    "hard_failures":  [
+
+                      ],
+    "computed_average_score":  83.57,
+    "reviewed_artifacts":  [
+                               {
+                                   "path":  "frozen-deliverable-round-1.md",
+                                   "sha256":  "A5A3BB782039C5E35D44622F31C91DAA298553626EBBE58CC6469A065743C37F"
+                               }
+                           ],
+    "summary":  "第一輪內部審核未通過。部署、PSD 與效能基礎良好，但基本互動缺真實瀏覽器證據且流程拖曳歷史交易錯誤；模板 ID/標註與解壓防護有資料可靠性缺口；字型與文件宣告不一致。",
+    "raw_review":  "D:\\codex_playground\\分鏡工具\\output\\review\\project-quality-audit-2026-08-13\\review-round-1.json"
+}
