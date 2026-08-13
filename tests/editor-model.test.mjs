@@ -148,12 +148,18 @@ test("scene rename, reorder and duplicate preserve stable source data", () => {
   project = second.project;
   project = renameScene(project, second.sceneId, "Scatter 觸發");
   project = reorderScene(project, second.sceneId, -1);
+  const sourceTargetId = project.scenes[second.sceneId].layers[0].id;
+  project = addAnnotation(project, second.sceneId, "跟隨物件", sourceTargetId);
   const duplicated = duplicateScene(project, second.sceneId);
 
   assert.equal(duplicated.project.sceneOrder[0], second.sceneId);
   assert.equal(duplicated.project.scenes[second.sceneId].name, "Scatter 觸發");
   assert.equal(duplicated.project.scenes[duplicated.sceneId].name, "Scatter 觸發 複本");
   assert.notEqual(duplicated.sceneId, second.sceneId);
+  const duplicatedScene = duplicated.project.scenes[duplicated.sceneId];
+  assert.notEqual(duplicatedScene.layers[0].id, sourceTargetId);
+  assert.equal(duplicatedScene.annotations[0].targetLayerId, duplicatedScene.layers[0].id);
+  assert.notEqual(duplicatedScene.annotations[0].id, project.scenes[second.sceneId].annotations[0].id);
 });
 
 test("layer clipboard crosses scenes, renews nested ids and supports step ordering", () => {
