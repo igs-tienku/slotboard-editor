@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-08-13T07:42:28.263Z",
+  "fileName": "01_PSD技術驗證.psd",
+  "byteLength": 96722,
+  "checks": [
+    {
+      "label": "文件尺寸",
+      "passed": true,
+      "detail": "640 × 360 RGB"
+    },
+    {
+      "label": "中文根圖層",
+      "passed": true,
+      "detail": "畫面標題_點陣文字 → 盤面_ReelGrid → 背景"
+    },
+    {
+      "label": "巢狀群組",
+      "passed": true,
+      "detail": "Reel Grid 6 個子項目；第一軸 3 層"
+    },
+    {
+      "label": "隱藏與透明度",
+      "passed": true,
+      "detail": "hidden=true；opacity=0.45098039215686275"
+    },
+    {
+      "label": "標題透明度",
+      "passed": true,
+      "detail": "opacity=0.8588235294117647"
+    }
+  ]
+}
