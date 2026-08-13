@@ -1,0 +1,362 @@
+﻿{
+    "round":  1,
+    "review_mode":  "codex-internal",
+    "rubric_version":  "1.0",
+    "rubric_sha256":  "93A0C8E2E7BA14C8B408901F3A265053F9384C37097987572F896B5B30253593",
+    "computed_verdict":  "CHANGES_REQUIRED",
+    "passing_score":  85,
+    "passing_rule":  "all",
+    "objective_checks":  [
+                             {
+                                 "name":  "Frozen revision and complete automated regression",
+                                 "status":  "PASS",
+                                 "evidence":  "HEAD c22728bc29b937c4216aa4db9520e542a32af4fb; npm run test passed 18/18, including build, M0 PSD round-trip, 30 Scene package, and 50x100 serialization checks."
+                             }
+                         ],
+    "failed_objective_checks":  [
+
+                                ],
+    "scores":  [
+                   {
+                       "id":  "C1",
+                       "name":  "Scene 與基礎編輯核心",
+                       "score":  78,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "核心控制項存在但跨 Scene 操作或細部圖層排序缺失",
+                                                  "result":  "新增、變形、群組、復原等存在；找不到跨 Scene copy/paste，圖層排序只提供最前／最後。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "lib/editor-model.js:191-235,490-638",
+                                            "observation":  "Scene、對齊、群組與 history 命令均存在。",
+                                            "effect":  "支持主要編輯核心可用。"
+                                        },
+                                        {
+                                            "location":  "lib/editor-model.js exported functions",
+                                            "observation":  "沒有 copy/paste layer across Scene 命令。",
+                                            "effect":  "PRD 5.2 的明確操作缺失。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "跨 Scene 複製貼上未實作",
+                                        "缺少逐層上移／下移"
+                                    ],
+                       "required_changes":  [
+                                                "加入可復原的跨 Scene copy/paste 與物件複製",
+                                                "加入逐層排序並測試巢狀群組"
+                                            ]
+                   },
+                   {
+                       "id":  "C2",
+                       "name":  "圖形、文字、圖片與色彩",
+                       "score":  66,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "模型有 fill/stroke 就被誤判為使用者可編輯",
+                                                  "result":  "ShapeVisual 讀取 fill/stroke，但 shape 屬性面板沒有填色、外框、寬度、圓角或灰階色盤入口。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "app/editor.tsx:623-654",
+                                            "observation":  "屬性面板只為 image、text、reel 提供專用外觀；一般 shape 無 color input。",
+                                            "effect":  "企劃無法完成承諾的灰階重要度與彩色工作流。"
+                                        },
+                                        {
+                                            "location":  "lib/editor-model.js:444-488 and tests/editor-model.test.mjs",
+                                            "observation":  "圖片原地置換、裁切焦點與 reset 有模型及往返測試。",
+                                            "effect":  "圖片與文字部分具實質完成證據。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "五級灰階色盤未實作",
+                                        "一般圖形填色／外框／圓角 UI 未實作"
+                                    ],
+                       "required_changes":  [
+                                                "新增 shape 外觀面板與具名灰階色盤，並保留一般彩色及自訂色"
+                                            ]
+                   },
+                   {
+                       "id":  "C3",
+                       "name":  "Slot 專用元件與跨 Scene 流程",
+                       "score":  64,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "Symbol 定義存在但圖片同步未真正支援",
+                                                  "result":  "Symbol UI 只有名稱與顏色；assetId 不會被匯入或 renderer 使用。"
+                                              },
+                                              {
+                                                  "candidate":  "流程畫布被稱為無限且有自動整理",
+                                                  "result":  "CSS 固定 1800x1200；沒有 zoom 或 auto-layout 命令。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "app/editor.tsx:654-659",
+                                            "observation":  "Reel 可逐欄調整，Symbol 只能改色改名。",
+                                            "effect":  "Slot 基本結構可用，但圖片 Symbol 承諾缺失。"
+                                        },
+                                        {
+                                            "location":  "app/globals.css:159 and app/editor.tsx:226-247",
+                                            "observation":  "流程可拖曳與連線，但畫布尺寸固定，沒有 zoom／auto layout。",
+                                            "effect":  "流程總覽只有部分達標。"
+                                        },
+                                        {
+                                            "location":  "app/editor.tsx:610 and lib/editor-model.js:401-415",
+                                            "observation":  "標註以固定清單呈現，x/y 不可拖曳且編輯器無引線。",
+                                            "effect":  "畫布外自由標註未完成。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "Symbol 圖片未實作",
+                                        "流程縮放、自動整理、真正擴張畫布未實作",
+                                        "標註拖曳與編輯器引線未實作"
+                                    ],
+                       "required_changes":  [
+                                                "補齊 Symbol 圖片管線",
+                                                "補流程 zoom／auto layout／可擴張範圍",
+                                                "讓標註位置與引線可編輯"
+                                            ]
+                   },
+                   {
+                       "id":  "C4",
+                       "name":  "專案保存、模板與恢復",
+                       "score":  79,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "migration 成功案例掩蓋未知版本的降級需求",
+                                                  "result":  "未知 schemaVersion 直接 throw，沒有唯讀開啟或另存新版。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "lib/project-package.js and tests/project-package.test.mjs",
+                                            "observation":  "專案／模板素材往返及損壞拒絕有測試。",
+                                            "effect":  "主要可攜保存可靠。"
+                                        },
+                                        {
+                                            "location":  "lib/editor-model.js:158-184",
+                                            "observation":  "只支援 v1/v2 migration；其他版本拋錯。",
+                                            "effect":  "PRD 7.1 唯讀降級未完成。"
+                                        },
+                                        {
+                                            "location":  "app/editor.tsx",
+                                            "observation":  "沒有內建橫版、直版、Reel Scene 模板選擇器。",
+                                            "effect":  "PRD 7.3 部分缺失。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "未知版本無唯讀模式",
+                                        "缺內建模板",
+                                        "manifest toolVersion 過期且無內容雜湊"
+                                    ],
+                       "required_changes":  [
+                                                "實作安全的唯讀降級與另存新版",
+                                                "加入三種內建模板並更新 manifest 契約"
+                                            ]
+                   },
+                   {
+                       "id":  "C5",
+                       "name":  "PSD 正式交付",
+                       "score":  55,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "M0 round-trip 被當成正式 Scene PSD 驗證",
+                                                  "result":  "verify:psd 只測固定 psd-prototype，不會呼叫 createScenePsd。"
+                                              },
+                                              {
+                                                  "candidate":  "群組結構存在但變形後子圖層位置錯誤",
+                                                  "result":  "composite 套用父 group transform；buildPsdLayer 遞迴 child 時未累積父 transform。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "lib/export-engine.js:109-128",
+                                            "observation":  "drawLayer 對 group 套 transform，但 PSD child rasterization 沒有傳遞父 transform。",
+                                            "effect":  "移動／旋轉／翻轉群組的正式 PSD 可能與編輯器畫面不一致。"
+                                        },
+                                        {
+                                            "location":  "scripts/verify-psd-prototype.mjs",
+                                            "observation":  "自動驗證輸入是固定 M0 樣本。",
+                                            "effect":  "正式輸出器缺少結構 round-trip 證據。"
+                                        },
+                                        {
+                                            "location":  "docs/M6-QA.md",
+                                            "observation":  "正式編輯器 PSD 的 Krita／Photoshop 檢查仍列人工待辦。",
+                                            "effect":  "硬性驗收門檻尚未通過。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "群組 transform 輸出錯誤風險",
+                                        "正式 PSD round-trip 缺失",
+                                        "Photoshop 矩陣未驗收"
+                                    ],
+                       "required_changes":  [
+                                                "修正父群組 transform／opacity 累積後逐葉光柵化",
+                                                "對 createScenePsd 建立真實 Scene round-trip",
+                                                "完成三種 Scene 的 Krita／Photoshop 驗收"
+                                            ]
+                   },
+                   {
+                       "id":  "C6",
+                       "name":  "PDF 溝通輸出",
+                       "score":  76,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "樣張視覺 QA 等同瀏覽器輸出 QA",
+                                                  "result":  "output PDF 樣張由獨立 ReportLab 腳本產生，不是 createProjectPdf 的產物。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "lib/export-engine.js:145-199",
+                                            "observation":  "有動態流程頁、Scene 頁、上下游和標註引線實作。",
+                                            "effect":  "PDF 核心管線存在。"
+                                        },
+                                        {
+                                            "location":  "scripts/create-m5-pdf-sample.py",
+                                            "observation":  "視覺樣張使用另一套產生器。",
+                                            "effect":  "不能證明瀏覽器 PDF 在長文字、多 Scene、群組旋轉下正確。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "瀏覽器實際 PDF 未做視覺回歸",
+                                        "標註自由位置未被輸出使用",
+                                        "多標註與長文字溢出未處理"
+                                    ],
+                       "required_changes":  [
+                                                "用 createProjectPdf 產生固定 fixture 並渲染逐頁 QA",
+                                                "加入長文字、多標註與旋轉群組錨點測試"
+                                            ]
+                   },
+                   {
+                       "id":  "C7",
+                       "name":  "Canva 式可用性與操作發現",
+                       "score":  67,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "近期右鍵與拖曳修正掩蓋整體編輯便利性缺口",
+                                                  "result":  "右鍵、Shift 約束和救回已加入，但缺 zoom、copy/paste、shape 外觀、物件 duplicate、新建尺寸等常用功能。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "app/editor.tsx:355-423,537-570,662-676",
+                                            "observation":  "安全拖曳、Shift 約束、左側 Scene 與右鍵選單存在。",
+                                            "effect":  "已改善使用者回報的直接操作問題。"
+                                        },
+                                        {
+                                            "location":  "app/editor.tsx complete UI search",
+                                            "observation":  "找不到畫布 zoom、新建尺寸、shape palette、跨 Scene clipboard。",
+                                            "effect":  "距離原始『Canva 主要功能』期望仍有明顯差距。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "多項常見編排入口缺失",
+                                        "尚無完整 Chrome／Edge 使用者旅程驗收"
+                                    ],
+                       "required_changes":  [
+                                                "完成 P0/P1 可用性缺口後，以五份歷史案例做任務式測試"
+                                            ]
+                   },
+                   {
+                       "id":  "C8",
+                       "name":  "效能、相容性與發布",
+                       "score":  72,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "50x100 測試代表整個應用承受 5000 圖層",
+                                                  "result":  "performance.test 只量 serialize/deserialize，未量 UI render、縮圖、圖片或輸出。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "tests/performance.test.mjs",
+                                            "observation":  "50 Scene x 100 layer 資料往返約 38ms。",
+                                            "effect":  "模型序列化有良好基準。"
+                                        },
+                                        {
+                                            "location":  "vite.config.ts",
+                                            "observation":  "base \u0027./\u0027 且正式 build 通過。",
+                                            "effect":  "具備靜態子路徑建置條件。"
+                                        },
+                                        {
+                                            "location":  "docs/M6-QA.md",
+                                            "observation":  "Chrome／Edge、重新整理與部署仍待人工；程式沒有 Worker。",
+                                            "effect":  "正式相容與大型輸出效能未證明。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "未部署 GitHub Pages",
+                                        "Chrome／Edge 未驗收",
+                                        "壓測未涵蓋渲染與輸出",
+                                        "Worker 未實作"
+                                    ],
+                       "required_changes":  [
+                                                "增加渲染、圖片與輸出壓測",
+                                                "完成 Chrome／Edge 及實際 GitHub Pages 驗收",
+                                                "把重型輸出移至 Worker 或證明不阻塞"
+                                            ]
+                   },
+                   {
+                       "id":  "C9",
+                       "name":  "驗收覆蓋與承諾透明度",
+                       "score":  61,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "文件已列人工待辦，所以完成標籤完全誠實",
+                                                  "result":  "M5/M6 有 caveat，但 README 稱 M1-M6 完成；M3/M4 完成標籤未揭露 auto-layout、Symbol 圖片、標註拖曳、唯讀 migration 等缺口。"
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "docs/ARCHITECTURE.md:256-332",
+                                            "observation":  "M1-M4 標為已完成，M5/M6 標已實作。",
+                                            "effect":  "里程碑狀態容易被解讀為 PRD 全覆蓋。"
+                                        },
+                                        {
+                                            "location":  "README.md:3",
+                                            "observation":  "稱已完成 M1-M6 編輯器。",
+                                            "effect":  "與本輪發現的未實作承諾不一致。"
+                                        },
+                                        {
+                                            "location":  "docs/M6-QA.md",
+                                            "observation":  "Photoshop、瀏覽器與歷史案例人工待辦有揭露。",
+                                            "effect":  "部分重要驗收狀態是透明的。"
+                                        }
+                                    ],
+                       "problems":  [
+                                        "沒有完整 PRD traceability matrix",
+                                        "里程碑完成用語高於實際功能覆蓋"
+                                    ],
+                       "required_changes":  [
+                                                "以本次盤點建立正式追蹤表，完成前把里程碑狀態改為部分完成／待驗收"
+                                            ]
+                   }
+               ],
+    "failed_criteria":  [
+                            "C1",
+                            "C2",
+                            "C3",
+                            "C4",
+                            "C5",
+                            "C6",
+                            "C7",
+                            "C8",
+                            "C9"
+                        ],
+    "hard_failures":  [
+                          "C5: Transformed groups are composited with the parent transform in the editor, but PSD child layers are rasterized without accumulated parent transforms; formal PSD structure and layout acceptance cannot pass."
+                      ],
+    "computed_average_score":  68.67,
+    "reviewed_artifacts":  [
+                               {
+                                   "path":  "frozen-deliverable.md",
+                                   "sha256":  "3D582C36B56F58640BB16E4106FDA71432698A8E11C87D769EE59D57028B6F2E"
+                               }
+                           ],
+    "summary":  "Internal audit found a solid editable prototype and 18 passing automated tests, but multiple explicit PRD commitments remain partial or absent. The most serious issue is unverified and likely incorrect transformed-group PSD output.",
+    "raw_review":  "D:\\codex_playground\\分鏡工具\\output\\review\\feature-audit-2026-08-13\\review-round-1.json"
+}
