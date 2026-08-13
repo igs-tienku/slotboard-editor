@@ -20,6 +20,7 @@ body {
 }
 
 button { font: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 3px solid #769000; outline-offset: 2px; }
 
 .prototype-shell { min-height: 100vh; display: flex; flex-direction: column; }
 

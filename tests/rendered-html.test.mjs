@@ -10,7 +10,7 @@ test("build emits the GitHub Pages-compatible application", async () => {
   await access(new URL("../dist/assets/", import.meta.url));
 });
 
-test("M5 editor keeps authoring, package and production export controls available", async () => {
+test("M6 editor keeps authoring, package, export and accessibility controls available", async () => {
   const [editor, entry, packageJson] = await Promise.all([
     readFile(new URL("../app/editor.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/main.tsx", import.meta.url), "utf8"),
@@ -32,6 +32,8 @@ test("M5 editor keeps authoring, package and production export controls availabl
   assert.match(editor, /createPsdZip/);
   assert.match(editor, /createProjectPdf/);
   assert.match(editor, /EXPORT PREVIEW/);
+  assert.match(editor, /aria-modal="true"/);
+  assert.match(editor, /removeLayers/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);

@@ -321,7 +321,7 @@ project.slotboard
 
 實作狀態（2026-08-13）：已完成當前 Scene PSD、全 Scene PSD ZIP、檔名預覽，以及含流程總覽、標註引線、上下游關係的 PDF。自動 PSD round-trip、完整測試與兩頁 PDF 結構／視覺 QA 均通過；正式編輯器產出的 PSD 仍列入 Krita／Photoshop 人工相容性驗收。
 
-### M6：效能、可用性與發布
+### M6：效能、可用性與發布（已實作，自動驗證完成）
 
 - 50 Scene × 100 圖層壓力測試。
 - 鍵盤操作、焦點順序及基本無障礙。
@@ -330,6 +330,8 @@ project.slotboard
 - 使用說明、版本號及錯誤回報資訊。
 
 退出條件：Chrome／Edge 驗收完成，至少 4/5 歷史案例不需外部繪圖工具。
+
+實作狀態（2026-08-13）：已加入 50 Scene × 100 圖層固定壓力測試、圖層刪除與 Escape 快捷鍵、文字輸入快捷鍵保護、焦點外框及輸出 dialog 語意；相對 base path 靜態建置與完整回歸測試通過。Chrome／Edge 實機操作、正式 PSD 的 Krita／Photoshop 相容性，以及 4/5 歷史案例效率驗收仍依 `docs/M6-QA.md` 人工執行。
 
 ## 13. 近期下一步
 

@@ -163,3 +163,14 @@ test("text, alignment and schema v1 migration use M2 defaults", () => {
   assert.equal(migrated.editorSettings.snap, true);
   assert.equal(migrated.fonts.length, 3);
 });
+
+test("removing selected layers also clears annotations anchored to them", async () => {
+  const { addAnnotation, removeLayers } = await import("../lib/editor-model.js");
+  let project = createProject();
+  const sceneId = project.sceneOrder[0];
+  const layerId = project.scenes[sceneId].layers[1].id;
+  project = addAnnotation(project, sceneId, "remove with target", layerId);
+  project = removeLayers(project, sceneId, [layerId]);
+  assert.equal(project.scenes[sceneId].layers.length, 1);
+  assert.equal(project.scenes[sceneId].annotations.length, 0);
+});

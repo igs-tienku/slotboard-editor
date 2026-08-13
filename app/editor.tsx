@@ -27,6 +27,7 @@ import {
   removeAnnotation,
   removeConnection,
   removeReelColumn,
+  removeLayers,
   replaceLayerWithImage,
   renameScene,
   reorderScene,
@@ -292,7 +293,16 @@ export function SlotBoardEditor() {
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey)) return;
+      const target = event.target as HTMLElement | null;
+      const editing = target?.matches("input, textarea, select, [contenteditable='true']");
+      if (!editing && (event.key === "Delete" || event.key === "Backspace") && selectedIds.length) {
+        event.preventDefault();
+        setHistory((current: any) => commitHistory(current, removeLayers(current.present, activeSceneId, selectedIds)));
+        setSelectedIds([]);
+        return;
+      }
+      if (!editing && event.key === "Escape") { setSelectedIds([]); setShowExport(false); return; }
+      if (editing || !(event.ctrlKey || event.metaKey)) return;
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
         setHistory((current: any) => event.shiftKey ? redoHistory(current) : undoHistory(current));
@@ -304,7 +314,7 @@ export function SlotBoardEditor() {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+  }, [activeSceneId, selectedIds]);
 
   const sceneIndex = project.sceneOrder.indexOf(activeSceneId);
   const flattenedCount = useMemo(() => {
@@ -605,7 +615,7 @@ export function SlotBoardEditor() {
         </aside>
       </div>
       {notice && <button className="m2-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
-      {showExport && <div className="m5-modal-backdrop" onClick={() => !exportBusy && setShowExport(false)}><section className="m5-export-modal" onClick={(event) => event.stopPropagation()}><div className="m5-modal-head"><div><small>EXPORT PREVIEW</small><h2>正式輸出</h2></div><button onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress">正在逐層光柵化與封裝，請勿關閉頁面…</p>}</section></div>}
+      {showExport && <div className="m5-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !exportBusy) setShowExport(false); }}><section className="m5-export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title"><div className="m5-modal-head"><div><small>EXPORT PREVIEW</small><h2 id="export-title">正式輸出</h2></div><button aria-label="關閉輸出視窗" onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress" role="status">正在逐層光柵化與封裝，請勿關閉頁面…</p>}</section></div>}
     </main>
   );
 }
