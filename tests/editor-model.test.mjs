@@ -10,6 +10,7 @@ import {
   addSymbol,
   alignLayers,
   assignReelSymbol,
+  autoArrangeScenes,
   commitHistory,
   copyLayerSelection,
   createHistory,
@@ -31,6 +32,7 @@ import {
   serializeProject,
   undoHistory,
   updateAnnotation,
+  updateEditorSettings,
   updateLayer,
   updateReelColumn,
   updateSceneOverview,
@@ -118,6 +120,25 @@ test("flow positions, branching connections and anchored annotations persist", (
   assert.equal(restored.scenes[first].annotations[0].targetLayerId, targetLayerId);
   assert.equal(restored.scenes[first].annotations[0].x, restored.scenes[first].width + 170);
   assert.equal(restored.scenes[first].annotations[0].y, 0);
+});
+
+test("flow auto-arrange handles branches and cycles while zoom persists", () => {
+  let project = createProject();
+  const first = project.sceneOrder[0];
+  const second = addScene(project, "FG"); project = second.project;
+  const third = addScene(project, "選擇分支"); project = third.project;
+  const fourth = addScene(project, "循環返回"); project = fourth.project;
+  project = addConnection(project, first, second.sceneId, "進 FG");
+  project = addConnection(project, first, third.sceneId, "分支");
+  project = addConnection(project, second.sceneId, fourth.sceneId, "結束");
+  project = addConnection(project, fourth.sceneId, second.sceneId, "重試");
+  project = updateEditorSettings(project, { flowZoom: 0.7 });
+  project = autoArrangeScenes(project);
+  const restored = deserializeProject(serializeProject(project));
+  assert.equal(restored.editorSettings.flowZoom, 0.7);
+  assert.equal(restored.scenes[first].overview.x, 80);
+  assert.ok(restored.scenes[third.sceneId].overview.x > restored.scenes[first].overview.x);
+  assert.equal(new Set(restored.sceneOrder.map((id) => `${restored.scenes[id].overview.x},${restored.scenes[id].overview.y}`)).size, 4);
 });
 
 test("scene rename, reorder and duplicate preserve stable source data", () => {

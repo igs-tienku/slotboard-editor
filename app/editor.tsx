@@ -11,6 +11,7 @@ import {
   addSymbol,
   addTextLayer,
   alignLayers,
+  autoArrangeScenes,
   assignReelSymbol,
   commitHistory,
   copyLayerSelection,
@@ -255,13 +256,18 @@ function layerCenter(layers: any[], targetId: string, offsetX = 0, offsetY = 0):
   return null;
 }
 
-function FlowOverview({ project, activeSceneId, connectionFrom, onSelect, onStartConnection, onConnect, onMove, onUpdateConnection, onRemoveConnection }: any) {
+function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, onAutoArrange, onSelect, onStartConnection, onConnect, onMove, onUpdateConnection, onRemoveConnection }: any) {
   const drag = useRef<any>(null);
-  return <div className="m3-flow-canvas" onPointerMove={(event) => {
+  const width = Math.max(1600, ...project.sceneOrder.map((id: string) => project.scenes[id].overview.x + 420));
+  const height = Math.max(900, ...project.sceneOrder.map((id: string) => project.scenes[id].overview.y + 300));
+  return <div className="m3-flow-shell">
+    <div className="m12-flow-toolbar"><button onClick={() => onZoom(Math.max(.5, zoom - .1))}>－</button><b>{Math.round(zoom * 100)}%</b><button onClick={() => onZoom(Math.min(1.5, zoom + .1))}>＋</button><button onClick={() => onZoom(1)}>100%</button><button className="arrange" onClick={onAutoArrange}>自動整理</button><span>{width} × {height}</span></div>
+    <div className="m3-flow-canvas" onPointerMove={(event) => {
     if (!drag.current) return;
-    onMove(drag.current.id, { x: drag.current.x + event.clientX - drag.current.startX, y: drag.current.y + event.clientY - drag.current.startY });
+    onMove(drag.current.id, { x: drag.current.x + (event.clientX - drag.current.startX) / zoom, y: drag.current.y + (event.clientY - drag.current.startY) / zoom });
   }} onPointerUp={() => { drag.current = null; }}>
-    <svg className="m3-connections">
+    <div className="m12-flow-scaled-space" style={{ width: width * zoom, height: height * zoom }}><div className="m12-flow-world" style={{ width, height, transform: `scale(${zoom})` }}>
+    <svg className="m3-connections" style={{ width, height }}>
       <defs><marker id="flowArrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0 0 L10 4 L0 8 Z" fill="#6f772f" /></marker></defs>
       {project.connections.map((connection: any) => {
         const from = project.scenes[connection.fromSceneId]?.overview;
@@ -278,8 +284,9 @@ function FlowOverview({ project, activeSceneId, connectionFrom, onSelect, onStar
         <div><button onClick={() => onStartConnection(id)}>起點</button>{connectionFrom && connectionFrom !== id && <button className="connect-target" onClick={() => onConnect(id)}>連到這裡</button>}</div>
       </div>;
     })}
-    <div className="m3-flow-hint">拖曳 Scene 排列流程；先按「起點」，再按另一張卡片的「連到這裡」。流程可分支及迴圈。</div>
-  </div>;
+    <div className="m3-flow-hint">拖曳 Scene 排列流程；工具列可縮放或自動整理。先按「起點」，再按另一張卡片的「連到這裡」。</div>
+    </div></div>
+  </div></div>;
 }
 
 export function SlotBoardEditor() {
@@ -745,7 +752,7 @@ export function SlotBoardEditor() {
             </div>
           </div>
           <footer className="m1-statusbar"><span>Scene {sceneIndex + 1}/{project.sceneOrder.length}</span><span>{flattenedCount} 個圖層</span><span>{scene.width} × {scene.height}px</span><button className={project.editorSettings.snap ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { snap: !project.editorSettings.snap }))}>吸附</button><button className={project.editorSettings.guides ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { guides: !project.editorSettings.guides }))}>參考線</button><button className={project.editorSettings.pixelGrid ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { pixelGrid: !project.editorSettings.pixelGrid }))}>像素格</button></footer>
-          </> : <FlowOverview project={project} activeSceneId={activeSceneId} connectionFrom={connectionFrom} onSelect={setActiveSceneId} onStartConnection={(id: string) => setConnectionFrom(id)} onConnect={(id: string) => { if (connectionFrom) commit(addConnection(project, connectionFrom, id)); setConnectionFrom(null); }} onMove={(id: string, position: any) => commit(updateSceneOverview(project, id, position))} onUpdateConnection={(id: string, label: string) => commit(updateConnection(project, id, { label }))} onRemoveConnection={(id: string) => commit(removeConnection(project, id))} />}
+          </> : <FlowOverview project={project} activeSceneId={activeSceneId} connectionFrom={connectionFrom} zoom={project.editorSettings.flowZoom ?? 1} onZoom={(flowZoom: number) => commit(updateEditorSettings(project, { flowZoom: Math.round(flowZoom * 10) / 10 }))} onAutoArrange={() => { if (window.confirm("自動整理會重新排列所有 Scene，連線內容不會改變。確定繼續？")) commit(autoArrangeScenes(project)); }} onSelect={setActiveSceneId} onStartConnection={(id: string) => setConnectionFrom(id)} onConnect={(id: string) => { if (connectionFrom) commit(addConnection(project, connectionFrom, id)); setConnectionFrom(null); }} onMove={(id: string, position: any) => commit(updateSceneOverview(project, id, position))} onUpdateConnection={(id: string, label: string) => commit(updateConnection(project, id, { label }))} onRemoveConnection={(id: string) => commit(removeConnection(project, id))} />}
         </section>
 
         <aside className="m1-right">
