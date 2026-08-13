@@ -1,6 +1,9 @@
 # SlotBoard 分鏡編輯器
 
-此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M15 編輯器。
+此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成並部署的 M1–M16 編輯器。
+
+- 正式網站：https://igs-tienku.github.io/slotboard-editor/
+- 公開原始碼：https://github.com/igs-tienku/slotboard-editor
 
 ## 已完成
 
