@@ -56,6 +56,11 @@ const tools = [
   ["star", "星形", "☆"], ["polygon", "多邊形", "⬡"], ["line", "直線", "╱"], ["arrow", "箭頭", "→"],
 ];
 
+const GRAYSCALE_PALETTE = [
+  ["背景", "#4c4d49"], ["次要", "#777873"], ["一般", "#a6a7a2"], ["重要", "#d2d3ce"], ["最高焦點", "#f2f2ee"],
+] as const;
+const COLOR_PALETTE = ["#d95f59", "#e49a3a", "#dbc93d", "#78a85b", "#4f9b9b", "#5686c4", "#8668b4", "#bd6c9b"];
+
 function loadRecovery() {
   try {
     const saved = localStorage.getItem(LEGACY_RECOVERY_KEY);
@@ -115,7 +120,7 @@ function shapePoints(kind: string, width: number, height: number) {
 function ShapeVisual({ layer }: { layer: any }) {
   const { width, height } = layer.transform;
   const common = { fill: layer.fill, stroke: layer.stroke, strokeWidth: layer.strokeWidth, vectorEffect: "non-scaling-stroke" as const };
-  if (layer.kind === "rectangle") return <rect width={width} height={height} rx={6} {...common} />;
+  if (layer.kind === "rectangle") return <rect width={width} height={height} rx={layer.cornerRadius ?? 6} {...common} />;
   if (layer.kind === "ellipse") return <ellipse cx={width / 2} cy={height / 2} rx={width / 2} ry={height / 2} {...common} />;
   if (["triangle", "star", "polygon"].includes(layer.kind)) return <polygon points={shapePoints(layer.kind, width, height)} {...common} />;
   return <line x1={4} y1={height / 2} x2={width - 8} y2={height / 2} {...common} markerEnd={layer.kind === "arrow" ? "url(#arrowhead)" : undefined} />;
@@ -632,6 +637,21 @@ export function SlotBoardEditor() {
                 <label className="m1-field"><span>透明度</span><input type="number" min="0" max="100" value={Math.round(selectedLayer.opacity * 100)} onChange={(event) => updateSelected("opacity", Number(event.target.value) / 100)} /></label>
               </div>
               <div className="m1-flips"><button className={selectedLayer.transform.flipX ? "active" : ""} onClick={() => updateSelected("flipX", !selectedLayer.transform.flipX)}>水平翻轉</button><button className={selectedLayer.transform.flipY ? "active" : ""} onClick={() => updateSelected("flipY", !selectedLayer.transform.flipY)}>垂直翻轉</button></div>
+              {selectedLayer.type === "shape" && <div className="m2-special-panel m7-shape-panel">
+                <div className="m1-panel-title"><span>SHAPE APPEARANCE</span><b>灰階優先</b></div>
+                {!["line", "arrow"].includes(selectedLayer.kind) && <>
+                  <div className="m7-palette-label">重要度灰階</div>
+                  <div className="m7-gray-palette">{GRAYSCALE_PALETTE.map(([label, color]) => <button key={label} className={selectedLayer.fill === color ? "active" : ""} title={label} onClick={() => updateSelected("fill", color)}><i style={{ background: color }} /><span>{label}</span></button>)}</div>
+                  <div className="m7-palette-label">常用彩色</div>
+                  <div className="m7-color-palette">{COLOR_PALETTE.map((color) => <button key={color} className={selectedLayer.fill === color ? "active" : ""} aria-label={`填色 ${color}`} style={{ background: color }} onClick={() => updateSelected("fill", color)} />)}</div>
+                </>}
+                <div className="m7-shape-fields">
+                  {!["line", "arrow"].includes(selectedLayer.kind) && <label>自訂填色<input type="color" value={selectedLayer.fill === "transparent" ? "#ffffff" : selectedLayer.fill} onChange={(event) => updateSelected("fill", event.target.value)} /></label>}
+                  <label>外框色<input type="color" value={selectedLayer.stroke} onChange={(event) => updateSelected("stroke", event.target.value)} /></label>
+                  <label>外框寬度<input type="number" min="0" max="40" value={selectedLayer.strokeWidth} onChange={(event) => updateSelected("strokeWidth", Number(event.target.value))} /></label>
+                  {selectedLayer.kind === "rectangle" && <label>圓角<input type="number" min="0" max={Math.round(Math.min(selectedLayer.transform.width, selectedLayer.transform.height) / 2)} value={selectedLayer.cornerRadius ?? 6} onChange={(event) => updateSelected("cornerRadius", Number(event.target.value))} /></label>}
+                </div>
+              </div>}
               {selectedLayer.type === "image" && <div className="m2-special-panel">
                 <div className="m1-panel-title"><span>IMAGE FIT</span><b>{project.assets[selectedLayer.assetId]?.name}</b></div>
                 <div className="segmented"><button className={selectedLayer.fit === "contain" ? "active" : ""} onClick={() => updateSelected("fit", "contain")}>完整顯示</button><button className={selectedLayer.fit === "cover" ? "active" : ""} onClick={() => updateSelected("fit", "cover")}>填滿裁切</button></div>

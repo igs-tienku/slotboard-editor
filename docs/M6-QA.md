@@ -35,3 +35,9 @@
 - 圖層及群組透明度只保留為 PSD opacity，不再同時烘焙進像素造成雙重透明。
 - `tests/scene-psd-roundtrip.test.mjs` 會建立真實 Scene，輸出並重新解析 PSD，逐像素邊界檢查群組物件、透明度與背景順序。
 - 可用 `node scripts/create-scene-psd-regression.mjs` 產生 Krita 人工驗收檔。
+
+## M7 圖形外觀驗收
+
+- 選取矩形、圓形、三角形、星形或多邊形時，屬性面板應顯示五級具名灰階與彩色色盤。
+- 自訂填色、外框色與外框寬度應同步反映在畫布與 PSD。
+- 矩形圓角應同步反映在畫布、專案重開與 PSD。

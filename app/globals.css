@@ -174,3 +174,17 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .m6-context-menu button:hover { background: #eaf6b9; }
 .m6-context-menu button.danger { color: #9a4237; }
 .m6-context-menu hr { width: 100%; margin: 5px 0; border: 0; border-top: 1px solid #d8dad3; }
+
+/* M7 shape appearance */
+.m7-palette-label { padding: 2px 13px 6px; color: #777b73; font: 700 8px Arial; letter-spacing: .08em; }
+.m7-gray-palette { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 0 13px 12px; }
+.m7-gray-palette button { min-width: 0; display: grid; gap: 4px; justify-items: center; border: 1px solid transparent; border-radius: 5px; padding: 4px 2px; background: transparent; color: #72766e; font-size: 7px; cursor: pointer; }
+.m7-gray-palette button.active { border-color: #718318; background: #efffb7; }
+.m7-gray-palette i { width: 100%; height: 25px; border: 1px solid #3f413d55; border-radius: 3px; }
+.m7-gray-palette span { overflow: hidden; width: 100%; text-overflow: ellipsis; white-space: nowrap; }
+.m7-color-palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; padding: 0 13px 12px; }
+.m7-color-palette button { aspect-ratio: 1; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 0 1px #bfc1ba; cursor: pointer; }
+.m7-color-palette button.active { box-shadow: 0 0 0 3px #8ca31f; }
+.m7-shape-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 13px 12px; }
+.m7-shape-fields label { display: grid; gap: 4px; color: #777b73; font-size: 8px; }
+.m7-shape-fields input { min-width: 0; width: 100%; height: 30px; border: 1px solid #ced0c9; border-radius: 5px; background: white; }

@@ -199,3 +199,14 @@ test("loading an older project repairs a full-canvas background placed on top", 
   const restored = deserializeProject(JSON.stringify(project));
   assert.equal(restored.scenes[sceneId].layers.at(-1).name, "背景");
 });
+
+test("shape fill, stroke and corner radius survive project reload", () => {
+  let project = createProject(), sceneId = project.sceneOrder[0];
+  project = addLayer(project, sceneId, "rectangle");
+  const layerId = project.scenes[sceneId].layers[0].id;
+  project = updateLayer(project, sceneId, layerId, (layer) => {
+    layer.fill = "#d95f59"; layer.stroke = "#102030"; layer.strokeWidth = 7; layer.cornerRadius = 24;
+  });
+  const restored = deserializeProject(serializeProject(project)), shape = restored.scenes[sceneId].layers[0];
+  assert.deepEqual([shape.fill, shape.stroke, shape.strokeWidth, shape.cornerRadius], ["#d95f59", "#102030", 7, 24]);
+});
