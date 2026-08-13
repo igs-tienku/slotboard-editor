@@ -45,6 +45,7 @@ import {
 import { loadRecoveryProject, saveRecoveryProject } from "../lib/recovery-storage.js";
 import { buildPrototypePsd, PROTOTYPE_FILE_NAME } from "../lib/psd-prototype.js";
 import { createProjectPackage, createTemplatePackage, openProjectPackage, openTemplatePackage } from "../lib/project-package.js";
+import { buildSceneFileNames, createProjectPdf, createPsdZip, createScenePsd } from "../lib/export-engine.js";
 
 const LEGACY_RECOVERY_KEY = "slotboard:m1-recovery";
 const tools = [
@@ -253,6 +254,8 @@ export function SlotBoardEditor() {
   const [notice, setNotice] = useState("");
   const [viewMode, setViewMode] = useState<"scene" | "flow">("scene");
   const [connectionFrom, setConnectionFrom] = useState<string | null>(null);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -440,6 +443,30 @@ export function SlotBoardEditor() {
     }
   }
 
+  async function exportSinglePsd() {
+    setExportBusy(true);
+    try {
+      const bytes = await createScenePsd(project, activeSceneId);
+      const file = buildSceneFileNames(project).find((item: any) => item.sceneId === activeSceneId);
+      downloadBytes(bytes, `${file?.base ?? "Scene"}.psd`, "image/vnd.adobe.photoshop");
+    } catch (error) { setNotice(`PSD 輸出失敗：${error instanceof Error ? error.message : "未知錯誤"}`); }
+    finally { setExportBusy(false); }
+  }
+
+  async function exportAllPsd() {
+    setExportBusy(true);
+    try { downloadBytes(await createPsdZip(project), `${project.name}_PSD.zip`); }
+    catch (error) { setNotice(`批次 PSD 失敗：${error instanceof Error ? error.message : "未知錯誤"}`); }
+    finally { setExportBusy(false); }
+  }
+
+  async function exportPdf() {
+    setExportBusy(true);
+    try { downloadBytes(await createProjectPdf(project), `${project.name}_分鏡.pdf`, "application/pdf"); }
+    catch (error) { setNotice(`PDF 輸出失敗：${error instanceof Error ? error.message : "未知錯誤"}`); }
+    finally { setExportBusy(false); }
+  }
+
   function updateSelected(property: string, value: any) {
     if (!selectedLayer) return;
     commit(updateLayer(project, activeSceneId, selectedLayer.id, (layer: any) => {
@@ -481,7 +508,7 @@ export function SlotBoardEditor() {
           <button className={viewMode === "flow" ? "mode-active" : ""} onClick={() => setViewMode("flow")}>流程</button>
           <span>{recoveryReady ? "自動儲存開啟" : "載入草稿…"}</span>
         </div>
-        <div className="m1-actions"><button className="secondary" onClick={() => packageInputRef.current?.click()}>開啟</button><button className="secondary" onClick={exportProject}>儲存專案</button><button className="secondary" onClick={exportTemplate}>存為模板</button><button className="secondary" onClick={downloadPsd}>PSD 樣本</button><button className="accent" onClick={() => { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }}>＋ Scene</button><input className="visually-hidden" ref={packageInputRef} type="file" accept=".slotboard,.slottemplate" onChange={(event) => { void importPackage(event.target.files?.[0]); event.target.value = ""; }} /></div>
+        <div className="m1-actions"><button className="secondary" onClick={() => packageInputRef.current?.click()}>開啟</button><button className="secondary" onClick={exportProject}>儲存</button><button className="secondary" onClick={exportTemplate}>模板</button><button className="secondary" onClick={() => setShowExport(true)}>輸出</button><button className="accent" onClick={() => { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }}>＋ Scene</button><input className="visually-hidden" ref={packageInputRef} type="file" accept=".slotboard,.slottemplate" onChange={(event) => { void importPackage(event.target.files?.[0]); event.target.value = ""; }} /></div>
       </header>
 
       <div className="m1-workspace">
@@ -578,6 +605,7 @@ export function SlotBoardEditor() {
         </aside>
       </div>
       {notice && <button className="m2-notice" onClick={() => setNotice("")}>{notice}<span>×</span></button>}
+      {showExport && <div className="m5-modal-backdrop" onClick={() => !exportBusy && setShowExport(false)}><section className="m5-export-modal" onClick={(event) => event.stopPropagation()}><div className="m5-modal-head"><div><small>EXPORT PREVIEW</small><h2>正式輸出</h2></div><button onClick={() => setShowExport(false)} disabled={exportBusy}>×</button></div><div className="m5-file-preview">{buildSceneFileNames(project).map((item: any) => <div key={item.sceneId}><span>{item.base}.psd</span><small>{project.scenes[item.sceneId].width} × {project.scenes[item.sceneId].height}</small></div>)}</div><div className="m5-export-actions"><button onClick={() => void exportSinglePsd()} disabled={exportBusy}>目前 Scene PSD</button><button onClick={() => void exportAllPsd()} disabled={exportBusy}>全部 PSD ZIP</button><button onClick={() => void exportPdf()} disabled={exportBusy}>流程與標註 PDF</button><button className="technical" onClick={downloadPsd} disabled={exportBusy}>M0 技術樣本</button></div>{exportBusy && <p className="m5-progress">正在逐層光柵化與封裝，請勿關閉頁面…</p>}</section></div>}
     </main>
   );
 }

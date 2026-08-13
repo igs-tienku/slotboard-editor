@@ -310,7 +310,7 @@ project.slotboard
 
 完成紀錄（2026-08-13）：已實作 `.slotboard` 專案包、`.slottemplate` Scene 模板、manifest、獨立 assets 目錄、素材 data URL 還原、跨專案模板匯入與新 ID 配置。匯入在完整解析成功後才替換目前專案；套件限制 5,000 個檔案及 500 MB 解壓大小，並拒絕缺少 manifest、錯誤種類、缺少素材或損壞 ZIP。30 Scene 與嵌入素材往返、模板匯入、損壞包拒絕測試通過。
 
-### M5：正式輸出
+### M5：正式輸出（已實作）
 
 - 每 Scene PSD、檔名預覽及批次 ZIP。
 - 流程總覽與一 Scene 一頁 PDF。
@@ -318,6 +318,8 @@ project.slotboard
 - Photoshop 版本矩陣人工 QA。
 
 退出條件：PRD 第 10 節 PSD 與效率驗收全部通過。
+
+實作狀態（2026-08-13）：已完成當前 Scene PSD、全 Scene PSD ZIP、檔名預覽，以及含流程總覽、標註引線、上下游關係的 PDF。自動 PSD round-trip、完整測試與兩頁 PDF 結構／視覺 QA 均通過；正式編輯器產出的 PSD 仍列入 Krita／Photoshop 人工相容性驗收。
 
 ### M6：效能、可用性與發布
 

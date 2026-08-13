@@ -1,6 +1,6 @@
 # SlotBoard 分鏡編輯器
 
-此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M4 編輯器。
+此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M5 編輯器。
 
 ## 已完成
 
@@ -41,6 +41,14 @@ npm run dev
 ```powershell
 npm run test
 ```
+
+## M5 輸出
+
+- 單一 Scene 可匯出保留圖層與群組結構的 PSD。
+- 全專案可依 Scene 順序匯出 Windows 安全命名的 PSD ZIP。
+- PDF 第一頁為完整流程總覽，後續每頁包含 Scene 畫面、標註引線，以及上游／下游關係。
+- 匯出前會顯示預計檔名；技術樣張與自動 round-trip 測試仍保留。
+- PDF 視覺驗證樣張位於 `output/pdf/slotboard-m5-sample.pdf`。
 
 測試會完成 TypeScript 檢查、GitHub Pages 相容打包、重新產生 PSD，並驗證尺寸、中文圖層名稱、巢狀群組、順序、隱藏狀態及透明度。
 
