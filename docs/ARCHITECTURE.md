@@ -299,7 +299,7 @@ project.slotboard
 
 完成紀錄（2026-08-13）：已實作可變軸數及逐軸列數 Reel Grid、3-4-4-4-3 預設、專案級 Symbol 定義與跨 Scene 引用、Symbol 同步改名／改色、可拖曳流程總覽、自由文字連線、分支與迴圈、內容式 Scene 縮圖，以及畫布外 Scene／物件錨定標註。Schema 升級至 v3；Reel、Symbol、流程座標、分支連線與標註保存重開測試通過。
 
-### M4：可攜專案與模板
+### M4：可攜專案與模板（已完成）
 
 - `.slotboard` 匯出／匯入。
 - `.slottemplate` 及 Scene 另存模板。
@@ -307,6 +307,8 @@ project.slotboard
 - schema migration、唯讀降級及損壞包錯誤處理。
 
 退出條件：在另一台支援瀏覽器開啟專案包，畫面與素材完整一致。
+
+完成紀錄（2026-08-13）：已實作 `.slotboard` 專案包、`.slottemplate` Scene 模板、manifest、獨立 assets 目錄、素材 data URL 還原、跨專案模板匯入與新 ID 配置。匯入在完整解析成功後才替換目前專案；套件限制 5,000 個檔案及 500 MB 解壓大小，並拒絕缺少 manifest、錯誤種類、缺少素材或損壞 ZIP。30 Scene 與嵌入素材往返、模板匯入、損壞包拒絕測試通過。
 
 ### M5：正式輸出
 

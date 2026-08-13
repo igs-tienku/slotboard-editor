@@ -27,6 +27,8 @@ test("M3 editor keeps reel, symbol, flow, annotation and PSD controls available"
   assert.match(editor, /FlowOverview/);
   assert.match(editor, /PROJECT SYMBOLS/);
   assert.match(editor, /SCENE 標註/);
+  assert.match(editor, /createProjectPackage/);
+  assert.match(editor, /createTemplatePackage/);
   assert.match(editor, /buildPrototypePsd/);
   assert.match(entry, /SlotBoardEditor/);
   assert.match(packageJson, /"verify:psd"/);

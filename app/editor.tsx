@@ -21,6 +21,7 @@ import {
   duplicateScene,
   findLayer,
   groupLayers,
+  importSceneTemplate,
   projectAssetBytes,
   redoHistory,
   removeAnnotation,
@@ -43,6 +44,7 @@ import {
 } from "../lib/editor-model.js";
 import { loadRecoveryProject, saveRecoveryProject } from "../lib/recovery-storage.js";
 import { buildPrototypePsd, PROTOTYPE_FILE_NAME } from "../lib/psd-prototype.js";
+import { createProjectPackage, createTemplatePackage, openProjectPackage, openTemplatePackage } from "../lib/project-package.js";
 
 const LEGACY_RECOVERY_KEY = "slotboard:m1-recovery";
 const tools = [
@@ -254,6 +256,7 @@ export function SlotBoardEditor() {
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const packageInputRef = useRef<HTMLInputElement>(null);
 
   const project = history.present;
   const scene = project.scenes[activeSceneId] ?? project.scenes[project.sceneOrder[0]];
@@ -399,6 +402,44 @@ export function SlotBoardEditor() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function downloadBytes(bytes: Uint8Array, fileName: string, type = "application/zip") {
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    const url = URL.createObjectURL(new Blob([buffer], { type }));
+    const link = document.createElement("a");
+    link.href = url; link.download = fileName; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportProject() {
+    const result = createProjectPackage(project);
+    downloadBytes(result.bytes, result.fileName);
+    setNotice(`已匯出 ${result.fileName}`);
+  }
+
+  function exportTemplate() {
+    const result = createTemplatePackage(project, activeSceneId);
+    downloadBytes(result.bytes, result.fileName);
+    setNotice(`已匯出 Scene 模板：${result.fileName}`);
+  }
+
+  async function importPackage(file?: File) {
+    if (!file) return;
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (file.name.toLowerCase().endsWith(".slottemplate")) {
+        const result = importSceneTemplate(project, openTemplatePackage(bytes));
+        commit(result.project); setActiveSceneId(result.sceneId); setViewMode("scene");
+        setNotice(`已匯入模板：${file.name}`);
+      } else {
+        const opened = deserializeProject(JSON.stringify(openProjectPackage(bytes)));
+        setHistory(createHistory(opened)); setActiveSceneId(opened.sceneOrder[0]); setSelectedIds([]);
+        setNotice(`已開啟專案：${file.name}`);
+      }
+    } catch (error) {
+      setNotice(`無法匯入：${error instanceof Error ? error.message : "檔案損壞"}`);
+    }
+  }
+
   function updateSelected(property: string, value: any) {
     if (!selectedLayer) return;
     commit(updateLayer(project, activeSceneId, selectedLayer.id, (layer: any) => {
@@ -440,7 +481,7 @@ export function SlotBoardEditor() {
           <button className={viewMode === "flow" ? "mode-active" : ""} onClick={() => setViewMode("flow")}>流程</button>
           <span>{recoveryReady ? "自動儲存開啟" : "載入草稿…"}</span>
         </div>
-        <div className="m1-actions"><button className="secondary" onClick={downloadPsd}>PSD 技術樣本</button><button className="accent" onClick={() => { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }}>＋ 新增 Scene</button></div>
+        <div className="m1-actions"><button className="secondary" onClick={() => packageInputRef.current?.click()}>開啟</button><button className="secondary" onClick={exportProject}>儲存專案</button><button className="secondary" onClick={exportTemplate}>存為模板</button><button className="secondary" onClick={downloadPsd}>PSD 樣本</button><button className="accent" onClick={() => { const result = addScene(project); commit(result.project); setActiveSceneId(result.sceneId); setSelectedIds([]); }}>＋ Scene</button><input className="visually-hidden" ref={packageInputRef} type="file" accept=".slotboard,.slottemplate" onChange={(event) => { void importPackage(event.target.files?.[0]); event.target.value = ""; }} /></div>
       </header>
 
       <div className="m1-workspace">

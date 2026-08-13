@@ -1,6 +1,6 @@
 # SlotBoard 分鏡編輯器
 
-此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M3 編輯器。
+此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成的 M1–M4 編輯器。
 
 ## 已完成
 
@@ -23,6 +23,9 @@
 - 可拖曳 Scene 的流程總覽、自由文字連線、分支及迴圈
 - 依 Scene 內容自動更新的縮圖
 - 畫布外 Scene 標註與指定圖層錨點
+- `.slotboard` 專案包：包含版本化 JSON、圖片素材與 manifest
+- `.slottemplate` Scene 模板包，可匯入目前專案並產生新 ID
+- 檔名清理、損壞包拒絕、解壓容量與檔案數量防護
 
 ## 本機使用
 
@@ -31,7 +34,7 @@ npm install
 npm run dev
 ```
 
-開啟後即可編輯 Scene。上方可切換「Scene／流程」模式；Scene 模式可新增 Reel Grid、Symbol 與標註，流程模式可拖曳排列 Scene 並建立帶文字的關係線。右上角仍可下載 M0 PSD 技術樣本。
+開啟後即可編輯 Scene。右上角可開啟／儲存 `.slotboard`，或將目前 Scene 匯出為 `.slottemplate`；上方可切換「Scene／流程」模式。右上角仍可下載 M0 PSD 技術樣本。
 
 ## 驗證
 
