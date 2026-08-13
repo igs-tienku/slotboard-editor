@@ -63,6 +63,11 @@ npm run test
 - 右鍵可找回物件、調整最上／最下層、置換圖片或刪除；空白處右鍵可新增常用內容。
 - 新舊專案的全畫布背景均會保持在最下層，PSD 匯出另有同樣防呆。
 
+### M6.2 PSD 群組修正
+
+- 巢狀群組的父層位移、旋轉與翻轉會正確套用到 PSD 內每個獨立子圖層。
+- PSD opacity 不再重複烘焙，並新增正式 Scene 的像素 round-trip 測試。
+
 測試會完成 TypeScript 檢查、GitHub Pages 相容打包、重新產生 PSD，並驗證尺寸、中文圖層名稱、巢狀群組、順序、隱藏狀態及透明度。
 
 基準 PSD 位於 `artifacts/psd-prototype/01_PSD技術驗證.psd`。已由使用者在 Krita 實際開啟並確認結構正常；正式發版前仍應補 Photoshop 相容性驗證。

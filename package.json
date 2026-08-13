@@ -1,6 +1,6 @@
 {
   "name": "slotboard-editor",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
+    "@napi-rs/canvas": "^1.0.5",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",

@@ -28,3 +28,10 @@
 - Shift 拖曳右下縮放點須維持原比例；Shift 旋轉須落在 90 度倍數。
 - 在畫布物件與圖層列按右鍵，應顯示合法操作選單。
 - 新建專案與舊 `.slotboard` 的背景須位於最下層；匯出 PSD 後以 Krita 檢查同一順序。
+
+## M6.2 PSD 群組修正
+
+- PSD 葉圖層現在會累積所有父群組的位移、旋轉與翻轉，再光柵化到 Scene 座標。
+- 圖層及群組透明度只保留為 PSD opacity，不再同時烘焙進像素造成雙重透明。
+- `tests/scene-psd-roundtrip.test.mjs` 會建立真實 Scene，輸出並重新解析 PSD，逐像素邊界檢查群組物件、透明度與背景順序。
+- 可用 `node scripts/create-scene-psd-regression.mjs` 產生 Krita 人工驗收檔。
