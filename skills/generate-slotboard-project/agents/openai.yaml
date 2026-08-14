@@ -1,0 +1,4 @@
+interface:
+  display_name: "Slot 規格轉 SlotBoard"
+  short_description: "將 Slot 規格、試算表與競品資料轉成可編輯分鏡專案"
+  default_prompt: "使用 $generate-slotboard-project 將這份 Slot 規格轉成可匯入 SlotBoard 的分鏡專案。"

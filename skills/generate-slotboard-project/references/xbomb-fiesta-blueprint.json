@@ -1,0 +1,213 @@
+{
+  "project": {
+    "name": "XBomb Fiesta 2048_AI分鏡草案",
+    "width": 1080,
+    "height": 1920,
+    "createdAt": "2026-08-14T00:00:00Z"
+  },
+  "scenes": [
+    {
+      "key": "mg_base",
+      "name": "01_MG_Base",
+      "layers": [
+        {
+          "key": "mg_base_title",
+          "type": "text",
+          "name": "STATE_MG標題",
+          "text": "MAIN GAME",
+          "transform": { "x": 340, "y": 55, "width": 400, "height": 70 },
+          "fontSize": 38,
+          "color": "#d2d3ce"
+        },
+        {
+          "key": "mg_characters",
+          "type": "group",
+          "name": "CHARACTERS_Bomb_Wild_Swap",
+          "transform": { "x": 90, "y": 145, "width": 900, "height": 300 },
+          "children": [
+            { "key": "mg_girl_bomb", "type": "shape", "kind": "ellipse", "name": "角色_Bomb女孩", "transform": { "x": 0, "y": 20, "width": 260, "height": 260 }, "fill": "#a6a7a2" },
+            { "key": "mg_girl_wild", "type": "shape", "kind": "ellipse", "name": "角色_Wild女孩", "transform": { "x": 320, "y": 0, "width": 260, "height": 280 }, "fill": "#d2d3ce" },
+            { "key": "mg_girl_swap", "type": "shape", "kind": "ellipse", "name": "角色_Swap女孩", "transform": { "x": 640, "y": 20, "width": 260, "height": 260 }, "fill": "#a6a7a2" }
+          ]
+        },
+        {
+          "key": "mg_board",
+          "type": "reelGrid",
+          "name": "BOARD_7x7",
+          "columns": [7, 7, 7, 7, 7, 7, 7],
+          "transform": { "x": 110, "y": 500, "width": 860, "height": 860 },
+          "cellColor": "#a6a7a2"
+        },
+        {
+          "key": "mg_hud",
+          "type": "group",
+          "name": "HUD_Credits_Win_Bet_Spin",
+          "transform": { "x": 90, "y": 1430, "width": 900, "height": 360 },
+          "children": [
+            { "key": "mg_hud_info", "type": "shape", "kind": "rectangle", "name": "HUD_資訊列", "transform": { "x": 0, "y": 0, "width": 900, "height": 110 }, "fill": "#777873" },
+            { "key": "mg_spin", "type": "shape", "kind": "ellipse", "name": "CONTROL_Spin", "transform": { "x": 330, "y": 145, "width": 240, "height": 200 }, "fill": "#d2d3ce" }
+          ]
+        }
+      ],
+      "annotations": [
+        { "text": "規格：直式 7×7 盤面；上方三位女孩分別對應 Bomb、Wild、Swap。", "target": "mg_board" },
+        { "text": "待確認：正式 HUD、Spin、Buy Bonus 與平台控制列版位。", "target": "mg_hud" }
+      ]
+    },
+    {
+      "key": "cluster_win",
+      "name": "02_MG_ClusterWin",
+      "layers": [
+        { "key": "cluster_label", "type": "text", "name": "STATE_ClusterWin", "text": "5+ ORTHOGONAL CLUSTER", "transform": { "x": 160, "y": 180, "width": 760, "height": 100 }, "fontSize": 44, "color": "#f2f2ee" },
+        { "key": "cluster_board", "type": "reelGrid", "name": "BOARD_7x7_得獎狀態", "columns": [7, 7, 7, 7, 7, 7, 7], "transform": { "x": 110, "y": 470, "width": 860, "height": 860 } },
+        { "key": "cluster_focus", "type": "shape", "kind": "polygon", "name": "WIN_Cluster高亮區", "transform": { "x": 330, "y": 690, "width": 420, "height": 420 }, "fill": "#f2f2ee", "opacity": 0.75 }
+      ],
+      "annotations": [
+        { "text": "規格：同圖騰上下左右相鄰達 5 顆以上才成立；對角線不相鄰。", "target": "cluster_focus" },
+        { "text": "待確認：Cluster 賠付表與格位倍數彙總公式。", "target": "cluster_board" }
+      ]
+    },
+    {
+      "key": "cascade",
+      "name": "03_MG_Cascade",
+      "layers": [
+        { "key": "cascade_title", "type": "text", "name": "STATE_Cascade", "text": "REMOVE → MULTIPLIER → REFILL", "transform": { "x": 130, "y": 170, "width": 820, "height": 100 }, "fontSize": 42, "color": "#f2f2ee" },
+        { "key": "cascade_board", "type": "reelGrid", "name": "BOARD_7x7_補牌狀態", "columns": [7, 7, 7, 7, 7, 7, 7], "transform": { "x": 110, "y": 470, "width": 860, "height": 860 }, "cellColor": "#777873" },
+        { "key": "cascade_arrows", "type": "group", "name": "FLOW_由上往下補牌", "transform": { "x": 170, "y": 330, "width": 740, "height": 160 }, "children": [
+          { "key": "cascade_arrow_1", "type": "shape", "kind": "arrow", "name": "補牌箭頭_左", "transform": { "x": 0, "y": 30, "width": 210, "height": 60 }, "stroke": "#f2f2ee" },
+          { "key": "cascade_arrow_2", "type": "shape", "kind": "arrow", "name": "補牌箭頭_中", "transform": { "x": 265, "y": 30, "width": 210, "height": 60 }, "stroke": "#f2f2ee" },
+          { "key": "cascade_arrow_3", "type": "shape", "kind": "arrow", "name": "補牌箭頭_右", "transform": { "x": 530, "y": 30, "width": 210, "height": 60 }, "stroke": "#f2f2ee" }
+        ] },
+        { "key": "cascade_multiplier", "type": "text", "name": "MULTIPLIER_格位倍數", "text": "x2 → x4 → … → x2048", "transform": { "x": 200, "y": 1410, "width": 680, "height": 120 }, "fontSize": 48, "background": "#d2d3ce", "color": "#20211f" }
+      ],
+      "annotations": [
+        { "text": "規格：移除後更新底板／倍數，再由上往下補牌並重複找 Cluster。", "target": "cascade_board" },
+        { "text": "待確認：Main Game 倍數重置時點與 Bomb 首次命中無底板格規則。", "target": "cascade_multiplier" }
+      ]
+    },
+    {
+      "key": "feature_bomb",
+      "name": "04_FEATURE_Bomb",
+      "layers": [
+        { "key": "bomb_title", "type": "text", "name": "FEATURE_Bomb標題", "text": "BOMB", "transform": { "x": 360, "y": 100, "width": 360, "height": 100 }, "fontSize": 64, "color": "#f2f2ee" },
+        { "key": "bomb_character", "type": "shape", "kind": "ellipse", "name": "角色_Bomb女孩_作用中", "transform": { "x": 130, "y": 260, "width": 300, "height": 340 }, "fill": "#f2f2ee" },
+        { "key": "bomb_board", "type": "reelGrid", "name": "BOARD_7x7_Bomb", "columns": [7, 7, 7, 7, 7, 7, 7], "transform": { "x": 110, "y": 720, "width": 860, "height": 860 }, "cellColor": "#777873" },
+        { "key": "bomb_range", "type": "shape", "kind": "rectangle", "name": "FEATURE_Bomb_3x3範圍", "transform": { "x": 350, "y": 940, "width": 380, "height": 380 }, "fill": "#f2f2ee", "opacity": 0.72, "strokeWidth": 6 }
+      ],
+      "annotations": [
+        { "text": "規格：左側女孩吹愛心，愛心變 Bomb，清除 3×3；炸除圖騰不給圖騰獎。", "target": "bomb_range" },
+        { "text": "待確認：邊界裁切、Bomb 數量與無底板格首次命中規則。", "target": "bomb_range" }
+      ]
+    },
+    {
+      "key": "feature_wild",
+      "name": "05_FEATURE_Wild",
+      "layers": [
+        { "key": "wild_title", "type": "text", "name": "FEATURE_Wild標題", "text": "WILD", "transform": { "x": 360, "y": 100, "width": 360, "height": 100 }, "fontSize": 64, "color": "#f2f2ee" },
+        { "key": "wild_character", "type": "shape", "kind": "ellipse", "name": "角色_Wild女孩_作用中", "transform": { "x": 390, "y": 260, "width": 300, "height": 340 }, "fill": "#f2f2ee" },
+        { "key": "wild_board", "type": "reelGrid", "name": "BOARD_7x7_Wild", "columns": [7, 7, 7, 7, 7, 7, 7], "transform": { "x": 110, "y": 720, "width": 860, "height": 860 }, "cellColor": "#777873" },
+        { "key": "wild_tokens", "type": "group", "name": "FEATURE_Wild_落點", "transform": { "x": 250, "y": 900, "width": 580, "height": 500 }, "children": [
+          { "key": "wild_token_1", "type": "shape", "kind": "star", "name": "Wild_01", "transform": { "x": 0, "y": 0, "width": 150, "height": 150 }, "fill": "#f2f2ee" },
+          { "key": "wild_token_2", "type": "shape", "kind": "star", "name": "Wild_02", "transform": { "x": 220, "y": 180, "width": 150, "height": 150 }, "fill": "#f2f2ee" },
+          { "key": "wild_token_3", "type": "shape", "kind": "star", "name": "Wild_03", "transform": { "x": 430, "y": 330, "width": 150, "height": 150 }, "fill": "#f2f2ee" }
+        ] }
+      ],
+      "annotations": [
+        { "text": "規格：中間女孩吹出多顆愛心，落到伺服器指定格位轉成 Wild。", "target": "wild_tokens" },
+        { "text": "待確認：Wild SymID、替代範圍、是否可自成 Cluster 與持久化。", "target": "wild_tokens" }
+      ]
+    },
+    {
+      "key": "feature_swap",
+      "name": "06_FEATURE_Swap",
+      "layers": [
+        { "key": "swap_title", "type": "text", "name": "FEATURE_Swap標題", "text": "SWAP", "transform": { "x": 360, "y": 100, "width": 360, "height": 100 }, "fontSize": 64, "color": "#f2f2ee" },
+        { "key": "swap_character", "type": "shape", "kind": "ellipse", "name": "角色_Swap女孩_作用中", "transform": { "x": 650, "y": 260, "width": 300, "height": 340 }, "fill": "#f2f2ee" },
+        { "key": "swap_board", "type": "reelGrid", "name": "BOARD_7x7_Swap", "columns": [7, 7, 7, 7, 7, 7, 7], "transform": { "x": 110, "y": 720, "width": 860, "height": 860 }, "cellColor": "#777873" },
+        { "key": "swap_flow", "type": "group", "name": "FEATURE_Swap_來源轉目標", "transform": { "x": 210, "y": 900, "width": 660, "height": 260 }, "children": [
+          { "key": "swap_source", "type": "shape", "kind": "polygon", "name": "Swap_來源圖騰組", "transform": { "x": 0, "y": 30, "width": 200, "height": 200 }, "fill": "#d2d3ce" },
+          { "key": "swap_arrow", "type": "shape", "kind": "arrow", "name": "Swap_變牌方向", "transform": { "x": 230, "y": 90, "width": 200, "height": 60 }, "stroke": "#f2f2ee" },
+          { "key": "swap_target", "type": "shape", "kind": "star", "name": "Swap_目標圖騰", "transform": { "x": 460, "y": 30, "width": 200, "height": 200 }, "fill": "#f2f2ee" }
+        ] }
+      ],
+      "annotations": [
+        { "text": "規格：右側女孩使同種來源圖騰同步轉成盤面已存在的一種目標圖騰。", "target": "swap_flow" },
+        { "text": "待確認：來源數量、目標權重與特殊圖騰是否可被選取。", "target": "swap_flow" }
+      ]
+    },
+    {
+      "key": "fg_entry",
+      "name": "07_PANEL_FGEntry",
+      "layers": [
+        { "key": "fg_entry_panel", "type": "shape", "kind": "rectangle", "name": "PANEL_FG入場", "transform": { "x": 140, "y": 570, "width": 800, "height": 620 }, "fill": "#f2f2ee", "cornerRadius": 30 },
+        { "key": "fg_entry_title", "type": "text", "name": "PANEL_FreeGames局數", "text": "10 FREE GAMES", "transform": { "x": 210, "y": 740, "width": 660, "height": 180 }, "fontSize": 72, "color": "#20211f" },
+        { "key": "fg_entry_scatter", "type": "group", "name": "TRIGGER_Scatter", "transform": { "x": 280, "y": 970, "width": 520, "height": 150 }, "children": [
+          { "key": "fg_scatter_1", "type": "shape", "kind": "star", "name": "Scatter_01", "transform": { "x": 0, "y": 0, "width": 150, "height": 150 }, "fill": "#d2d3ce" },
+          { "key": "fg_scatter_2", "type": "shape", "kind": "star", "name": "Scatter_02", "transform": { "x": 185, "y": 0, "width": 150, "height": 150 }, "fill": "#d2d3ce" },
+          { "key": "fg_scatter_3", "type": "shape", "kind": "star", "name": "Scatter_03", "transform": { "x": 370, "y": 0, "width": 150, "height": 150 }, "fill": "#d2d3ce" }
+        ] }
+      ],
+      "annotations": [
+        { "text": "規格：MG 3/4/5/6/7 Scatter 分別給 10/12/15/20/30 局。", "target": "fg_entry_title" },
+        { "text": "待確認：入場面板自動開始、可略過與倒數秒數。", "target": "fg_entry_panel" }
+      ]
+    },
+    {
+      "key": "fg_base",
+      "name": "08_FG_Base",
+      "layers": [
+        { "key": "fg_remaining", "type": "text", "name": "HUD_FG剩餘局數", "text": "FREE SPINS 09", "transform": { "x": 290, "y": 110, "width": 500, "height": 100 }, "fontSize": 52, "color": "#f2f2ee" },
+        { "key": "fg_board", "type": "reelGrid", "name": "BOARD_7x7_FG", "columns": [7, 7, 7, 7, 7, 7, 7], "transform": { "x": 110, "y": 450, "width": 860, "height": 860 }, "cellColor": "#a6a7a2" },
+        { "key": "fg_multiplier_note", "type": "text", "name": "RULE_FG倍數跨手保留", "text": "CELL MULTIPLIERS PERSIST", "transform": { "x": 180, "y": 1380, "width": 720, "height": 120 }, "fontSize": 42, "background": "#d2d3ce", "color": "#20211f" }
+      ],
+      "annotations": [
+        { "text": "規格：FG 內核心 Cascade 與 Features 沿用 MG；格位倍數跨手保留。", "target": "fg_board" },
+        { "text": "規格：FG 內 2/3/4/5/6 Scatter 分別 +5/+10/+12/+15/+20 局。", "target": "fg_remaining" },
+        { "text": "待確認：扣除剩餘局數與加局的精確事件時點。", "target": "fg_remaining" }
+      ]
+    },
+    {
+      "key": "result_panel",
+      "name": "09_PANEL_TotalOrMaxWin",
+      "layers": [
+        { "key": "result_panel_bg", "type": "shape", "kind": "rectangle", "name": "PANEL_結算", "transform": { "x": 130, "y": 510, "width": 820, "height": 760 }, "fill": "#f2f2ee", "cornerRadius": 30 },
+        { "key": "result_title", "type": "text", "name": "PANEL_TotalWin標題", "text": "TOTAL WIN", "transform": { "x": 230, "y": 660, "width": 620, "height": 140 }, "fontSize": 72, "color": "#20211f" },
+        { "key": "result_amount", "type": "text", "name": "PANEL_總贏分", "text": "12,345.67", "transform": { "x": 230, "y": 850, "width": 620, "height": 180 }, "fontSize": 82, "color": "#20211f" },
+        { "key": "max_win_label", "type": "text", "name": "PANEL_MAX_WIN替代狀態", "text": "MAX WIN", "transform": { "x": 290, "y": 1090, "width": 500, "height": 100 }, "fontSize": 58, "background": "#d2d3ce", "color": "#20211f" }
+      ],
+      "annotations": [
+        { "text": "AI 推定：初稿合併 Total Win 與 MAX WIN 構圖供比較，正式版可拆 Scene。", "target": "result_panel_bg" },
+        { "text": "待確認：MAX WIN 倍數基準、截斷方式、是否終止剩餘 FG。", "target": "max_win_label" }
+      ]
+    },
+    {
+      "key": "buy_bonus",
+      "name": "10_PANEL_BuyBonus",
+      "layers": [
+        { "key": "buy_panel", "type": "shape", "kind": "rectangle", "name": "PANEL_BuyBonus", "transform": { "x": 120, "y": 420, "width": 840, "height": 980 }, "fill": "#d2d3ce", "cornerRadius": 28 },
+        { "key": "buy_title", "type": "text", "name": "PANEL_BuyBonus標題", "text": "BUY BONUS", "transform": { "x": 250, "y": 520, "width": 580, "height": 120 }, "fontSize": 64, "color": "#20211f" },
+        { "key": "buy_normal", "type": "shape", "kind": "rectangle", "name": "OPTION_NormalFG", "transform": { "x": 190, "y": 760, "width": 700, "height": 190 }, "fill": "#f2f2ee" },
+        { "key": "buy_super", "type": "shape", "kind": "rectangle", "name": "OPTION_SuperFG", "transform": { "x": 190, "y": 1030, "width": 700, "height": 190 }, "fill": "#f2f2ee" }
+      ],
+      "annotations": [
+        { "text": "規格：一般購買以至少 3 Scatter 入 FG；Super FG 每手都有特殊玩法。", "target": "buy_panel" },
+        { "text": "待確認：價格、局數範圍、權重、扣款、取消與失敗復原流程。", "target": "buy_panel" }
+      ]
+    }
+  ],
+  "connections": [
+    { "from": "mg_base", "to": "cluster_win", "label": "Spin 後有 5+ Cluster" },
+    { "from": "cluster_win", "to": "cascade", "label": "計獎、消除、補牌" },
+    { "from": "cascade", "to": "cluster_win", "label": "仍有 Cluster" },
+    { "from": "cascade", "to": "feature_bomb", "label": "盤面穩定且 Bomb 觸發" },
+    { "from": "feature_bomb", "to": "feature_wild", "label": "Bomb 與 Cascade 完成" },
+    { "from": "feature_wild", "to": "feature_swap", "label": "Wild 與 Cascade 完成" },
+    { "from": "feature_swap", "to": "fg_entry", "label": "Scatter 達 FG 條件" },
+    { "from": "fg_entry", "to": "fg_base", "label": "開始 Free Game" },
+    { "from": "fg_base", "to": "result_panel", "label": "局數歸零或 MAX WIN" },
+    { "from": "result_panel", "to": "mg_base", "label": "結算完成" },
+    { "from": "mg_base", "to": "buy_bonus", "label": "開啟 Buy Bonus" },
+    { "from": "buy_bonus", "to": "fg_entry", "label": "購買一般 FG" },
+    { "from": "buy_bonus", "to": "fg_base", "label": "購買 Super FG" }
+  ]
+}
