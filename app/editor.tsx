@@ -27,6 +27,7 @@ import {
   locateLayerInScene,
   makeEditableCopy,
   moveAnnotation,
+  moveLayerByDrop,
   pasteLayerSelection,
   projectAssetBytes,
   redoHistory,
@@ -141,7 +142,10 @@ function ShapeVisual({ layer }: { layer: any }) {
   if (layer.kind === "rectangle") return <rect width={width} height={height} rx={layer.cornerRadius ?? 6} {...common} />;
   if (layer.kind === "ellipse") return <ellipse cx={width / 2} cy={height / 2} rx={width / 2} ry={height / 2} {...common} />;
   if (["triangle", "star", "polygon"].includes(layer.kind)) return <polygon points={shapePoints(layer.kind, width, height)} {...common} />;
-  return <line x1={4} y1={height / 2} x2={width - 8} y2={height / 2} {...common} markerEnd={layer.kind === "arrow" ? "url(#arrowhead)" : undefined} />;
+  return <>
+    <line className="m20-line-hit-target" x1={4} y1={height / 2} x2={width - 8} y2={height / 2} fill="none" stroke="transparent" strokeWidth={14} vectorEffect="non-scaling-stroke" pointerEvents="stroke" />
+    <line x1={4} y1={height / 2} x2={width - 8} y2={height / 2} {...common} markerEnd={layer.kind === "arrow" ? "url(#arrowhead)" : undefined} />
+  </>;
 }
 
 function ImageVisual({ layer, asset }: { layer: any; asset: any }) {
@@ -230,16 +234,16 @@ function LayerVisual({ layer, assets, selectedIds, onSelect, onContextMenu }: { 
   );
 }
 
-function LayerTree({ layers, selectedIds, onSelect, onToggle, onContextMenu, depth = 0 }: any) {
+function LayerTree({ layers, selectedIds, onSelect, onToggle, onContextMenu, onDragStart, onDragOver, onDrop, onDragEnd, dropTarget, depth = 0 }: any) {
   return layers.map((layer: any) => (
     <div key={layer.id}>
-      <div className={`m1-layer-row ${selectedIds.includes(layer.id) ? "selected" : ""}`} style={{ paddingLeft: 12 + depth * 18 }} onClick={(event) => onSelect(event, layer.id)} onContextMenu={(event) => onContextMenu(event, layer.id)}>
-        <button title={layer.visible ? "隱藏" : "顯示"} onClick={(event) => { event.stopPropagation(); onToggle(layer.id, "visible"); }}>{layer.visible ? "●" : "○"}</button>
+      <div className={`m1-layer-row ${selectedIds.includes(layer.id) ? "selected" : ""} ${layer.locked ? "locked" : "draggable"} ${dropTarget?.id === layer.id ? `drop-${dropTarget.placement}` : ""}`} style={{ paddingLeft: 12 + depth * 18 }} draggable={!layer.locked} title={layer.locked ? "圖層已鎖定" : "拖曳調整圖層順序"} onDragStart={(event) => onDragStart(event, layer.id)} onDragOver={(event) => onDragOver(event, layer.id)} onDrop={(event) => onDrop(event, layer.id)} onDragEnd={onDragEnd} onClick={(event) => onSelect(event, layer.id)} onContextMenu={(event) => onContextMenu(event, layer.id)}>
+        <button draggable={false} title={layer.visible ? "隱藏" : "顯示"} onClick={(event) => { event.stopPropagation(); onToggle(layer.id, "visible"); }}>{layer.visible ? "●" : "○"}</button>
         <span className="layer-kind">{layer.type === "group" ? "▣" : "◆"}</span>
         <span className="layer-label"><b>{layer.name}</b><small>{layer.type === "group" ? `${layer.children.length} 個子圖層` : layer.type === "image" ? "圖片" : layer.type === "text" ? "文字" : layer.type === "reelGrid" ? `${layer.columns.length} 軸` : layer.kind}</small></span>
-        <button title={layer.locked ? "解鎖" : "鎖定"} onClick={(event) => { event.stopPropagation(); onToggle(layer.id, "locked"); }}>{layer.locked ? "🔒" : "·"}</button>
+        <button draggable={false} title={layer.locked ? "解鎖" : "鎖定"} onClick={(event) => { event.stopPropagation(); onToggle(layer.id, "locked"); }}>{layer.locked ? "🔒" : "·"}</button>
       </div>
-      {layer.type === "group" && layer.opened !== false && <LayerTree layers={layer.children} selectedIds={selectedIds} onSelect={onSelect} onToggle={onToggle} onContextMenu={onContextMenu} depth={depth + 1} />}
+      {layer.type === "group" && layer.opened !== false && <LayerTree layers={layer.children} selectedIds={selectedIds} onSelect={onSelect} onToggle={onToggle} onContextMenu={onContextMenu} onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} onDragEnd={onDragEnd} dropTarget={dropTarget} depth={depth + 1} />}
     </div>
   ));
 }
@@ -387,6 +391,7 @@ export function SlotBoardEditor() {
   const [scenePan, setScenePan] = useState({ x: 0, y: 0 });
   const [scenePanning, setScenePanning] = useState(false);
   const [spaceHeld, setSpaceHeld] = useState(false);
+  const [layerDropTarget, setLayerDropTarget] = useState<{ id: string; placement: "before" | "after" } | null>(null);
   const historyRef = useRef(history);
   const dragRef = useRef<any>(null);
   const scenePanRef = useRef<any>(null);
@@ -396,6 +401,7 @@ export function SlotBoardEditor() {
   const userInteractedRef = useRef(false);
   const spaceHeldRef = useRef(false);
   const layerClipboardRef = useRef<any[]>([]);
+  const layerDragIdRef = useRef<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const packageInputRef = useRef<HTMLInputElement>(null);
 
@@ -910,6 +916,38 @@ export function SlotBoardEditor() {
     setContextMenu(null);
   }
 
+  function startLayerReorder(event: any, layerId: string) {
+    const layer: any = findLayer(scene.layers, layerId);
+    if (!layer || layer.locked || (event.target as Element).closest("button")) { event.preventDefault(); return; }
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/x-slotboard-layer", layerId);
+    layerDragIdRef.current = layerId;
+  }
+
+  function previewLayerReorder(event: any, targetId: string) {
+    const draggedId = layerDragIdRef.current ?? event.dataTransfer.getData("text/x-slotboard-layer");
+    if (!draggedId || draggedId === targetId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    const rect = event.currentTarget.getBoundingClientRect();
+    const target: any = findLayer(scene.layers, targetId);
+    const isBackgroundBoundary = /^(背景|background)$/i.test(String(target?.name ?? "").trim()) && target?.transform?.x === 0 && target?.transform?.y === 0 && target?.transform?.width >= scene.width && target?.transform?.height >= scene.height;
+    const placement = isBackgroundBoundary || event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    setLayerDropTarget({ id: targetId, placement });
+  }
+
+  function finishLayerReorder(event: any, targetId: string) {
+    event.preventDefault();
+    const draggedId = layerDragIdRef.current ?? event.dataTransfer.getData("text/x-slotboard-layer");
+    const placement = layerDropTarget?.id === targetId ? layerDropTarget.placement : "before";
+    setLayerDropTarget(null);
+    layerDragIdRef.current = null;
+    if (!draggedId || draggedId === targetId) return;
+    const next = moveLayerByDrop(project, activeSceneId, draggedId, targetId, placement);
+    if (next === project) { setNotice("圖層只能在同一群組層級內排序"); return; }
+    commit(next);
+  }
+
   return (
     <main className={`m1-shell ${project.compatibility?.readOnly ? "m13-readonly" : ""}`} onPointerDownCapture={() => { userInteractedRef.current = true; }} onWheelCapture={releaseNumberInputWheel}>
       <header className="m1-topbar">
@@ -954,8 +992,8 @@ export function SlotBoardEditor() {
             <button title="新增文字" onClick={() => { const next = addTextLayer(project, activeSceneId); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}><b>T</b><small>文字</small></button>
             <button title="新增 Reel Grid" onClick={() => { const next = addReelGridLayer(project, activeSceneId); commit(next); setSelectedIds([next.scenes[activeSceneId].layers[0].id]); }}><b>▦</b><small>Reel Grid</small></button>
             <span className="tool-divider" />
-            <button disabled={selectedIds.length < 2} onClick={() => { const result = groupLayers(project, activeSceneId, selectedIds); commit(result.project); if (result.groupId) setSelectedIds([result.groupId]); }}><b>▣</b><small>群組</small></button>
-            <button disabled={selectedLayer?.type !== "group"} onClick={() => { commit(ungroupLayer(project, activeSceneId, selectedLayer.id)); setSelectedIds([]); }}><b>▦</b><small>解散</small></button>
+            <button title="Shift 多選至少 2 個物件後建立群組" disabled={selectedIds.length < 2} onClick={() => { const result = groupLayers(project, activeSceneId, selectedIds); commit(result.project); if (result.groupId) setSelectedIds([result.groupId]); }}><b>▣</b><small>群組</small></button>
+            <button title="選取群組後解散為個別圖層" disabled={selectedLayer?.type !== "group"} onClick={() => { commit(ungroupLayer(project, activeSceneId, selectedLayer.id)); setSelectedIds([]); }}><b>▦</b><small>解散</small></button>
             <button disabled={!selectedLayer || selectedLayer.type === "group"} onClick={() => imageInputRef.current?.click()}><b>▧</b><small>換圖片</small></button>
             <input ref={imageInputRef} className="visually-hidden" type="file" accept="image/*" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
           </div>
@@ -993,7 +1031,7 @@ export function SlotBoardEditor() {
 
         <aside className="m1-right">
           <div className="m1-tabs"><b>圖層</b><span>屬性</span></div>
-          <div className="m1-layer-list"><LayerTree layers={scene.layers} selectedIds={selectedIds} onSelect={selectLayer} onContextMenu={openContextMenu} onToggle={(id: string, prop: string) => commit(updateLayer(project, activeSceneId, id, (layer: any) => { layer[prop] = !layer[prop]; }))} /></div>
+          <div className="m1-layer-list"><LayerTree layers={scene.layers} selectedIds={selectedIds} onSelect={selectLayer} onContextMenu={openContextMenu} onToggle={(id: string, prop: string) => commit(updateLayer(project, activeSceneId, id, (layer: any) => { layer[prop] = !layer[prop]; }))} onDragStart={startLayerReorder} onDragOver={previewLayerReorder} onDrop={finishLayerReorder} onDragEnd={() => { layerDragIdRef.current = null; setLayerDropTarget(null); }} dropTarget={layerDropTarget} /></div>
           <section className="m1-properties">
             <div className="m1-panel-title"><span>PROPERTIES</span>{selectedLayer && <b>{selectedLayer.type === "group" ? "群組" : "圖形"}</b>}</div>
             {selectedLayer ? <>

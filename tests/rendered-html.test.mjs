@@ -9,8 +9,8 @@ test("build emits the GitHub Pages-compatible application", async () => {
   ]);
   assert.match(html, /<title>SlotBoard 分鏡編輯器<\/title>/i);
   assert.match(html, /\.\/assets\//);
-  assert.match(html, /app\.js\?v=0\.19\.1/);
-  assert.match(html, /app\.css\?v=0\.19\.1/);
+  assert.match(html, /app\.js\?v=0\.20\.0/);
+  assert.match(html, /app\.css\?v=0\.20\.0/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
@@ -133,4 +133,12 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(editor, /m2-distribute-actions/);
   assert.match(css, /\.m2-align-panel > \.m2-align-actions\s*\{[^}]*repeat\(3/s);
   assert.match(css, /\.m2-align-panel > \.m2-distribute-actions\s*\{[^}]*repeat\(2/s);
+  assert.match(editor, /className="m20-line-hit-target"/);
+  assert.match(editor, /strokeWidth=\{14\}/);
+  assert.match(editor, /pointerEvents="stroke"/);
+  assert.match(editor, /draggable=\{!layer\.locked\}/);
+  assert.match(editor, /moveLayerByDrop/);
+  assert.match(editor, /Shift 多選至少 2 個物件後建立群組/);
+  assert.match(css, /\.m1-layer-row\.drop-before/);
+  assert.match(css, /\.m1-layer-row\.drop-after/);
 });

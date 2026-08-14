@@ -234,6 +234,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .m1-statusbar button { min-height: 28px; font-size: var(--ui-font-xs); }
 .m1-tabs, .m1-tabs b { height: 48px; font-size: var(--ui-font-base); }
 .m1-layer-row { min-height: 52px; grid-template-columns: 22px 28px minmax(0, 1fr) 28px; }
+.m1-layer-row.draggable { cursor: grab; }
+.m1-layer-row.draggable:active { cursor: grabbing; }
+.m1-layer-row.locked { cursor: default; }
+.m1-layer-row.drop-before { box-shadow: inset 0 3px 0 #819816; }
+.m1-layer-row.drop-after { box-shadow: inset 0 -3px 0 #819816; }
+.m20-line-hit-target { cursor: move; }
 .m1-layer-row button, .layer-label small { font-size: var(--ui-font-xs); }
 .layer-kind { width: 28px; height: 28px; font-size: var(--ui-font-sm); }
 .layer-label b, .empty-properties { font-size: var(--ui-font-base); }

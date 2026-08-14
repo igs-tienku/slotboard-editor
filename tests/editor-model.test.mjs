@@ -21,6 +21,7 @@ import {
   locateLayerInScene,
   makeEditableCopy,
   moveAnnotation,
+  moveLayerByDrop,
   projectAssetBytes,
   pasteLayerSelection,
   redoHistory,
@@ -333,4 +334,54 @@ test("shape fill, stroke and corner radius survive project reload", () => {
   });
   const restored = deserializeProject(serializeProject(project)), shape = restored.scenes[sceneId].layers[0];
   assert.deepEqual([shape.fill, shape.stroke, shape.strokeWidth, shape.cornerRadius], ["#d95f59", "#102030", 7, 24]);
+});
+
+test("drag reorder moves only unlocked siblings and keeps the background at the bottom", () => {
+  let project = createProject();
+  const sceneId = project.sceneOrder[0];
+  project = addLayer(project, sceneId, "ellipse");
+  project = addLayer(project, sceneId, "triangle");
+  const [triangle, ellipse, placeholder, background] = project.scenes[sceneId].layers;
+  assert.equal(background.name, "背景");
+  assert.equal(background.locked, true);
+
+  project = moveLayerByDrop(project, sceneId, triangle.id, placeholder.id, "after");
+  assert.deepEqual(project.scenes[sceneId].layers.map((layer) => layer.id), [ellipse.id, placeholder.id, triangle.id, background.id]);
+
+  const unchanged = moveLayerByDrop(project, sceneId, background.id, ellipse.id, "before");
+  assert.equal(unchanged, project);
+  assert.equal(unchanged.scenes[sceneId].layers.at(-1).id, background.id);
+});
+
+test("drag reorder preserves group boundaries while allowing child sibling order", () => {
+  let project = createProject();
+  const sceneId = project.sceneOrder[0];
+  project = addLayer(project, sceneId, "ellipse");
+  project = addLayer(project, sceneId, "triangle");
+  const source = project.scenes[sceneId].layers.slice(0, 2);
+  const grouped = groupLayers(project, sceneId, source.map((layer) => layer.id));
+  project = grouped.project;
+  let group = project.scenes[sceneId].layers.find((layer) => layer.id === grouped.groupId);
+  const [first, second] = group.children;
+  project = moveLayerByDrop(project, sceneId, second.id, first.id, "before");
+  group = project.scenes[sceneId].layers.find((layer) => layer.id === grouped.groupId);
+  assert.deepEqual(group.children.map((layer) => layer.id), [second.id, first.id]);
+
+  const rootLayer = project.scenes[sceneId].layers.find((layer) => layer.type !== "group" && layer.name !== "背景");
+  const unchanged = moveLayerByDrop(project, sceneId, second.id, rootLayer.id, "before");
+  assert.equal(unchanged, project);
+});
+
+test("legacy projects receive a one-time default background lock without relocking user choices", () => {
+  const legacy = createProject();
+  const sceneId = legacy.sceneOrder[0];
+  delete legacy.editorSettings.backgroundLockInitialized;
+  legacy.scenes[sceneId].layers.at(-1).locked = false;
+  const migrated = deserializeProject(JSON.stringify(legacy));
+  assert.equal(migrated.scenes[sceneId].layers.at(-1).locked, true);
+  assert.equal(migrated.editorSettings.backgroundLockInitialized, true);
+
+  migrated.scenes[sceneId].layers.at(-1).locked = false;
+  const reopened = deserializeProject(JSON.stringify(migrated));
+  assert.equal(reopened.scenes[sceneId].layers.at(-1).locked, false);
 });
