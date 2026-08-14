@@ -1,0 +1,238 @@
+{
+  "round": 1,
+  "review_mode": "codex-internal",
+  "rubric_version": "1.0",
+  "objective_checks": [
+    {
+      "name": "Full build, PSD verification, and automated suite",
+      "status": "PASS",
+      "evidence": "npm run test: TypeScript/build succeeded; PSD prototype checks passed; 46/46 tests passed."
+    },
+    {
+      "name": "Lint",
+      "status": "PASS",
+      "evidence": "npm run lint completed with exit code 0 and no diagnostics."
+    },
+    {
+      "name": "Performance budgets",
+      "status": "PASS",
+      "evidence": "npm run benchmark: 2/2 passed; render/export 567.0684 ms and 50×100 persistence 28.7034 ms."
+    },
+    {
+      "name": "Frozen source and deployment integrity",
+      "status": "PASS",
+      "evidence": "Product diff is clean at 4461c9d; Actions run 31765990579 build/deploy succeeded; live HTML references v0.20.1."
+    }
+  ],
+  "scores": [
+    {
+      "id": "C1",
+      "name": "核心畫布互動安全",
+      "score": 95,
+      "checks_against": [
+        {
+          "candidate": "直線或箭頭命中區仍隨畫布縮放變窄，或只有線段局部能拖曳。",
+          "result": "app/editor.tsx:147 使用完整寬度、24px 圓端透明 stroke，並以 non-scaling-stroke 固定螢幕命中寬度；rendered HTML 回歸檢查此結構。"
+        },
+        {
+          "candidate": "拖曳在 pointerup、cancel、失焦後殘留，或畫布只能單軸平移。",
+          "result": "app/editor.tsx:468-492 註冊視窗級結束／取消／失焦清理；interaction-math tests 明確驗證 Scene 與流程圖雙軸平移、drag intent 與縮放錨點。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "app/editor.tsx:147, 450-492, 734-748",
+          "observation": "線段命中、Ctrl-wheel preventDefault、視窗級拖曳清理與 Scene pan 使用分離且完整的事件生命週期。",
+          "effect": "降低誤拖、瀏覽器縮放與殘餘拖曳造成物件飛走的風險。"
+        },
+        {
+          "location": "tests/interaction-math.test.mjs:16-57; objective-checks-round-1.md",
+          "observation": "四方向 drag intent、雙軸平移、Ctrl-wheel 範圍、縮放錨點與 number input wheel 均通過；完整套件 46/46。",
+          "effect": "核心互動具有可重跑的數學與整合回歸證據。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    },
+    {
+      "id": "C2",
+      "name": "群組與圖層語意",
+      "score": 96,
+      "checks_against": [
+        {
+          "candidate": "點擊群組成員仍選到局部子物件，導致不能整組移動或拖曳範圍異常。",
+          "result": "LayerVisual 將 effectiveInteractionId 遞迴傳給所有子層，並在群組包圍盒加入透明 pointerEvents=all 命中面；任一成員或空白區都操作外層群組。"
+        },
+        {
+          "candidate": "縮放群組只改外框，拖放可能跨群組或把背景移到上層。",
+          "result": "scaleGroupChildren 從凍結的 baseChildren 遞迴縮放；moveLayerByDrop 僅移動同層 siblings，normalizeBackgroundOrder 與 locked background 保持背景底層。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "app/editor.tsx:213-236, 636-710",
+          "observation": "群組使用共同 interaction id、完整包圍盒命中面與 frozen child geometry 進行移動／縮放。",
+          "effect": "群組成為真正的原子畫布操作單位，且縮放不再只改外框。"
+        },
+        {
+          "location": "lib/editor-model.js:112, 158-182, 390-421, 773-785; tests/editor-model.test.mjs:340-402",
+          "observation": "背景預設鎖定；排序維持 siblings 與背景位置；巢狀群組縮放及一次性背景鎖定遷移測試通過。",
+          "effect": "圖層順序與群組階層不會因拖放或舊檔升級被破壞。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    },
+    {
+      "id": "C3",
+      "name": "資料保存與復原完整性",
+      "score": 96,
+      "checks_against": [
+        {
+          "candidate": "大量 Scene、跨 Scene 貼上或模板匯入產生 ID 衝突或資料遺失。",
+          "result": "30 Scene round-trip、跨 Scene clipboard、nested id renewal、模板資產／Symbol／annotation 重映射測試全部通過。"
+        },
+        {
+          "candidate": "損壞套件、未來 schema 或晚到的 recovery 覆蓋目前工作。",
+          "result": "套件預檢與 hash 拒絕損壞；future schema 唯讀；editor 以 userInteractedRef 阻止 recovery 覆蓋已開始的互動。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "tests/editor-model.test.mjs:46-284",
+          "observation": "大量 Scene、複製、群組 undo/redo、圖片 reset、schema migration 與 future editable copy 均有成功測試。",
+          "effect": "主要企劃資料生命週期具有端到端模型證據。"
+        },
+        {
+          "location": "tests/project-package.test.mjs:7-103; app/editor.tsx:491-507",
+          "observation": "套件 round-trip、file-count/size preflight、project/asset hashes 與 recovery 競態保護均存在且通過。",
+          "effect": "錯誤輸入不會默默取代目前專案，降低試用期間資料損失風險。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    },
+    {
+      "id": "C4",
+      "name": "PSD 與交付輸出正確性",
+      "score": 94,
+      "checks_against": [
+        {
+          "candidate": "PSD 寫入順序再次反轉，使背景遮住所有物件或群組像素錯位。",
+          "result": "export-engine order test 與 real Scene PSD round-trip 同時檢查背景底層、transformed group pixels 與 opacity，全部通過。"
+        },
+        {
+          "candidate": "Reel Grid Symbol 圖片、worker 路徑或批次輸出只有表面測試。",
+          "result": "完整測試含 Symbol image pixels、OffscreenCanvas-style worker surface、batch PSD/PDF performance；PSD prototype 另驗證中文與巢狀圖層。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "tests/export-engine.test.mjs:17-39; tests/scene-psd-roundtrip.test.mjs:35-111",
+          "observation": "PSD 視覺順序、巢狀群組轉換、opacity、Symbol pixels 與 worker render 均以輸出結果驗證。",
+          "effect": "直接覆蓋先前最嚴重的背景與圖層順序回歸。"
+        },
+        {
+          "location": "scripts/verify-psd-prototype.mjs; artifacts/psd-regression/; objective-checks-round-1.md",
+          "observation": "PSD prototype 五項檢查全部 PASS；使用者先前已用 Krita 開啟確認內容正常。",
+          "effect": "足以支撐內部同事試用，但仍保留未做 Photoshop 全版本矩陣的合理扣分。"
+        }
+      ],
+      "problems": [
+        "尚未建立 Photoshop 多版本自動相容矩陣；此項不在內部試用發布範圍內。"
+      ],
+      "required_changes": []
+    },
+    {
+      "id": "C5",
+      "name": "UI 可讀性與可發現性",
+      "score": 92,
+      "checks_against": [
+        {
+          "candidate": "放大字級後頂部模式按鈕截字、右側對齊控制重疊或狀態列壓縮畫布。",
+          "result": "CSS 對模式按鈕配置 auto width/min-width、對齊區使用 3 欄與 2 欄分區、狀態列可橫向捲動；rendered HTML tests 對這些規則做靜態回歸。"
+        },
+        {
+          "candidate": "群組、圖層排序或畫布操作仍沒有可發現提示。",
+          "result": "群組按鈕含 Shift 多選 title，圖層列含拖曳 title 與綠色落點，狀態列列出空白拖曳、Ctrl-wheel、Space/中鍵。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "app/globals.css:201-290; tests/rendered-html.test.mjs:73-151",
+          "observation": "字級 token 為 12–20px；工具列、屬性、模式按鈕、圖層列及對齊區都有放大後專用尺寸與回歸斷言。",
+          "effect": "已解決使用者必須放大整個瀏覽器到 150% 才可閱讀的主要問題。"
+        },
+        {
+          "location": "app/editor.tsx:246, 1002-1040; README.md:156-163",
+          "observation": "圖層拖曳、群組條件與畫布導覽均有 title、游標、落點或文字提示；使用者最新回饋為『大致OK』。",
+          "effect": "足供同事試用；首次使用群組仍可能需要一行操作說明，因此未給 95 分以上。"
+        }
+      ],
+      "problems": [
+        "群組需 Shift 多選的操作仍主要依靠 hover title，首次使用者可能需要 README 或簡短口頭提示。"
+      ],
+      "required_changes": []
+    },
+    {
+      "id": "C6",
+      "name": "效能、建置與回歸品質",
+      "score": 97,
+      "checks_against": [
+        {
+          "candidate": "最近群組修正只通過局部測試，完整 build、lint、PSD 或效能有回歸。",
+          "result": "凍結後重跑 npm run test、lint、benchmark：46/46、0 lint diagnostics、2/2 performance，且真實 PSD 測試包含 transformed group。"
+        },
+        {
+          "candidate": "審核時產品工作樹已有未提交修改，評分對象不等於部署版本。",
+          "result": "產品路徑相對 HEAD diff 為 clean；唯一 untracked 路徑是本次 review package。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "objective-checks-round-1.md",
+          "observation": "完整 suite、lint、benchmark 與 frozen source integrity 全為 PASS。",
+          "effect": "發布前品質門檻可重跑且沒有以主觀判斷取代測試。"
+        },
+        {
+          "location": "tests/performance.test.mjs; tests/performance-render.test.mjs",
+          "observation": "50×100 persistence 28.7034ms；Canvas/PSD/PDF 工作負載 567.0684ms，皆在預算內。",
+          "effect": "同事在規劃規模內使用不會因既知效能瓶頸被阻斷。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    },
+    {
+      "id": "C7",
+      "name": "線上發布與版本一致性",
+      "score": 97,
+      "checks_against": [
+        {
+          "candidate": "GitHub Pages 顯示舊 bundle、CI 未執行完整測試，或部署提交不同。",
+          "result": "Actions run 31765990579 對 headSha 4461c9d 的 build/test/upload/deploy 全部 success；live HTML 明確引用 v0.20.1。"
+        },
+        {
+          "candidate": "package、slotboard manifest 與網頁 cache-busting 版本不一致。",
+          "result": "package.json、TOOL_VERSION、project package test 與 build script 都為 0.20.1，rendered HTML test 同步驗證 bundle query。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "GitHub Actions run 31765990579; objective-checks-round-1.md",
+          "observation": "build job 94661920145 與 deploy job 94661993114 均 completed/success。",
+          "effect": "線上成品確實來自已審核提交並經過 CI 測試閘門。"
+        },
+        {
+          "location": "package.json:3; lib/project-package.js:5; scripts/build.mjs:7,46; live index.html",
+          "observation": "應用程式、匯出套件與線上 JS/CSS cache key 均一致為 0.20.1。",
+          "effect": "同事不會因版本混用而測到未審核的舊成品。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    }
+  ],
+  "hard_failures": [],
+  "summary": "Codex 內部唯讀稽核第 1 輪：七項均達 90 分以上，客觀檢查全數通過，未發現一票否決。v0.20.1 適合分享給內部同事試用；保留 Photoshop 多版本矩陣與首次群組教學為非阻斷、範圍外或後續改善項。"
+}
