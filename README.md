@@ -1,6 +1,6 @@
 # SlotBoard 分鏡編輯器
 
-此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成並部署的 M1–M17 編輯器。
+此工作區包含 SlotBoard MVP 的產品需求、技術架構、PSD 輸出技術原型，以及已完成並部署的 M1–M18 編輯器。
 
 - 正式網站：https://igs-tienku.github.io/slotboard-editor/
 - 公開原始碼：https://github.com/igs-tienku/slotboard-editor
@@ -141,6 +141,11 @@ npm run test
 - ZIP 在實際解壓前先檢查宣告檔案數與解壓大小。
 - Noto Sans TC、Noto Serif TC 與 Noto Sans Mono 的必要 WOFF2 子集隨產品提供，主畫面與 Worker 輸出共用相同字型載入器。
 - 完整閉環審核資料位於 `output/review/project-quality-audit-2026-08-13/`；Chrome／Edge、Photoshop 與效率案例仍依 `docs/M6-QA.md` 人工驗收。
+
+## M18 畫布滾輪縮放
+
+- 滑鼠位於 Scene 或流程圖畫布時，`Ctrl＋滾輪` 會縮放畫布並阻止瀏覽器頁面縮放；一般滾輪仍維持原本的捲動行為。
+- 縮放以滑鼠位置為中心，Scene 範圍為 25%–250%，流程圖範圍為 50%–150%。縮放比例會隨專案保存，但不加入 Undo 紀錄。
 
 測試會完成 TypeScript 檢查、GitHub Pages 相容打包、重新產生 PSD，並驗證尺寸、中文圖層名稱、巢狀群組、順序、隱藏狀態及透明度。
 

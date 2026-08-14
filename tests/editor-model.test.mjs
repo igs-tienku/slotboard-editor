@@ -133,10 +133,11 @@ test("flow auto-arrange handles branches and cycles while zoom persists", () => 
   project = addConnection(project, first, third.sceneId, "分支");
   project = addConnection(project, second.sceneId, fourth.sceneId, "結束");
   project = addConnection(project, fourth.sceneId, second.sceneId, "重試");
-  project = updateEditorSettings(project, { flowZoom: 0.7 });
+  project = updateEditorSettings(project, { flowZoom: 0.7, sceneZoom: 1.35 });
   project = autoArrangeScenes(project);
   const restored = deserializeProject(serializeProject(project));
   assert.equal(restored.editorSettings.flowZoom, 0.7);
+  assert.equal(restored.editorSettings.sceneZoom, 1.35);
   assert.equal(restored.scenes[first].overview.x, 80);
   assert.ok(restored.scenes[third.sceneId].overview.x > restored.scenes[first].overview.x);
   assert.equal(new Set(restored.sceneOrder.map((id) => `${restored.scenes[id].overview.x},${restored.scenes[id].overview.y}`)).size, 4);
@@ -254,6 +255,7 @@ test("text, alignment and schema v1 migration use M2 defaults", () => {
   const migrated = deserializeProject(JSON.stringify(legacy));
   assert.equal(migrated.schemaVersion, 3);
   assert.equal(migrated.editorSettings.snap, true);
+  assert.equal(migrated.editorSettings.sceneZoom, 1);
   assert.equal(migrated.fonts.length, 3);
 });
 

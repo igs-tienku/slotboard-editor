@@ -54,7 +54,7 @@ import {
   updateSymbol,
 } from "../lib/editor-model.js";
 import { loadRecoveryProject, saveRecoveryProject } from "../lib/recovery-storage.js";
-import { hasDragIntent, nextFlowScenePosition, nextScrollPan, nextTranslatedPan } from "../lib/interaction-math.js";
+import { hasDragIntent, nextFlowScenePosition, nextScrollAfterZoom, nextScrollPan, nextTranslationAfterZoom, nextTranslatedPan, nextWheelZoom } from "../lib/interaction-math.js";
 import { buildPrototypePsd, PROTOTYPE_FILE_NAME } from "../lib/psd-prototype.js";
 import { createProjectPackage, createTemplatePackage, openProjectPackage, openTemplatePackage } from "../lib/project-package.js";
 import { buildSceneFileNames, createProjectPdf, createPsdZip, createScenePsd, estimateExportWorkingSet } from "../lib/export-engine.js";
@@ -291,6 +291,7 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
   const pan = useRef<any>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const previousZoom = useRef(zoom);
+  const zoomAnchor = useRef<{ x: number; y: number } | null>(null);
   const [panning, setPanning] = useState(false);
   const margin = 600;
   const width = Math.max(1600, ...project.sceneOrder.map((id: string) => project.scenes[id].overview.x + 420));
@@ -303,12 +304,26 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
       canvas.scrollTop = margin * zoom;
       canvas.dataset.panReady = "true";
     } else if (previousZoom.current !== zoom) {
-      const ratio = zoom / previousZoom.current;
-      canvas.scrollLeft = (canvas.scrollLeft + canvas.clientWidth / 2) * ratio - canvas.clientWidth / 2;
-      canvas.scrollTop = (canvas.scrollTop + canvas.clientHeight / 2) * ratio - canvas.clientHeight / 2;
+      const anchor = zoomAnchor.current ?? { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
+      canvas.scrollLeft = nextScrollAfterZoom(canvas.scrollLeft, anchor.x, previousZoom.current, zoom);
+      canvas.scrollTop = nextScrollAfterZoom(canvas.scrollTop, anchor.y, previousZoom.current, zoom);
+      zoomAnchor.current = null;
     }
     previousZoom.current = zoom;
   }, [zoom]);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const zoomWithWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      zoomAnchor.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      onZoom(nextWheelZoom(zoom, event.deltaY, .5, 1.5));
+    };
+    canvas.addEventListener("wheel", zoomWithWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", zoomWithWheel);
+  }, [zoom, onZoom]);
   return <div className="m3-flow-shell">
     <div className="m12-flow-toolbar"><button onClick={() => onZoom(Math.max(.5, zoom - .1))}>－</button><b>{Math.round(zoom * 100)}%</b><button onClick={() => onZoom(Math.min(1.5, zoom + .1))}>＋</button><button onClick={() => onZoom(1)}>100%</button><button className="arrange" onClick={onAutoArrange}>自動整理</button><span>{width} × {height}</span></div>
     <div ref={canvasRef} className={`m3-flow-canvas ${panning ? "is-panning" : ""}`} onPointerDown={(event) => {
@@ -374,6 +389,7 @@ export function SlotBoardEditor() {
   const dragRef = useRef<any>(null);
   const scenePanRef = useRef<any>(null);
   const flowMoveRef = useRef<any>(null);
+  const sceneStageRef = useRef<HTMLDivElement>(null);
   const spaceHeldRef = useRef(false);
   const layerClipboardRef = useRef<any[]>([]);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -381,6 +397,7 @@ export function SlotBoardEditor() {
 
   const project = history.present;
   const scene = project.scenes[activeSceneId] ?? project.scenes[project.sceneOrder[0]];
+  const sceneZoom = project.editorSettings.sceneZoom ?? 1;
   const selectedLayer: any = selectedIds.length === 1 ? findLayer(scene.layers, selectedIds[0]) : null;
 
   useEffect(() => {
@@ -406,6 +423,23 @@ export function SlotBoardEditor() {
     window.addEventListener("pointerdown", close);
     return () => window.removeEventListener("pointerdown", close);
   }, [contextMenu]);
+
+  useEffect(() => {
+    const stage = sceneStageRef.current;
+    if (viewMode !== "scene" || !stage) return;
+    const zoomWithWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      const rect = stage.getBoundingClientRect();
+      const anchor = { x: event.clientX - rect.left - rect.width / 2, y: event.clientY - rect.top - rect.height / 2 };
+      const next = nextWheelZoom(sceneZoom, event.deltaY, .25, 2.5);
+      if (next === sceneZoom) return;
+      setScenePan((origin) => nextTranslationAfterZoom(origin, anchor, sceneZoom, next));
+      setHistory((current: any) => ({ ...current, present: updateEditorSettings(current.present, { sceneZoom: next }) }));
+    };
+    stage.addEventListener("wheel", zoomWithWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", zoomWithWheel);
+  }, [viewMode, sceneZoom]);
 
   useEffect(() => {
     loadRecoveryProject()
@@ -492,6 +526,10 @@ export function SlotBoardEditor() {
   function commit(nextProject: any) {
     if (project.compatibility?.readOnly) { setNotice("此專案來自較新的 schema，目前為唯讀；請先建立可編輯副本"); return; }
     setHistory((current: any) => commitHistory(current, nextProject));
+  }
+
+  function updateViewSettings(patch: any) {
+    setHistory((current: any) => ({ ...current, present: updateEditorSettings(current.present, patch) }));
   }
 
   function convertReadonlyCopy() {
@@ -874,8 +912,8 @@ export function SlotBoardEditor() {
             <button disabled={!selectedLayer || selectedLayer.type === "group"} onClick={() => imageInputRef.current?.click()}><b>▧</b><small>換圖片</small></button>
             <input ref={imageInputRef} className="visually-hidden" type="file" accept="image/*" onChange={(event) => { void importImage(event.target.files?.[0]); event.target.value = ""; }} />
           </div>
-          <div className={`m1-stage-wrap ${project.editorSettings.pixelGrid ? "pixel-grid" : ""} ${scenePanning ? "is-panning" : ""} ${spaceHeld ? "pan-ready" : ""}`} onPointerDownCapture={startScenePan} onPointerMove={moveScenePan} onPointerUp={endScenePan} onPointerCancel={endScenePan} onContextMenu={(event) => openContextMenu(event)}>
-            <div className="m3-editor-plane m11-editor-plane" style={{ transform: `translate(${scenePan.x}px, ${scenePan.y}px)` }}>
+          <div ref={sceneStageRef} className={`m1-stage-wrap ${project.editorSettings.pixelGrid ? "pixel-grid" : ""} ${scenePanning ? "is-panning" : ""} ${spaceHeld ? "pan-ready" : ""}`} onPointerDownCapture={startScenePan} onPointerMove={moveScenePan} onPointerUp={endScenePan} onPointerCancel={endScenePan} onContextMenu={(event) => openContextMenu(event)}>
+            <div className="m3-editor-plane m11-editor-plane" style={{ transform: `translate(${scenePan.x}px, ${scenePan.y}px) scale(${sceneZoom})`, transformOrigin: "center center" }}>
             <svg className="m1-canvas m11-annotation-canvas" style={{ aspectRatio: `${scene.width + 420} / ${scene.height}` }} viewBox={`0 0 ${scene.width + 420} ${scene.height}`} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} aria-label={`${scene.name} 編輯畫布與標註`}>
               <defs><marker id="arrowhead" markerWidth="12" markerHeight="10" refX="10" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#f2f2ed" /></marker></defs>
               <rect data-pan-surface="true" width={scene.width} height={scene.height} fill="#31322f" />
@@ -902,8 +940,8 @@ export function SlotBoardEditor() {
             <button className="m11-add-note" onClick={() => commit(addAnnotation(project, activeSceneId, "新增標註", selectedLayer?.id ?? null))}>＋ SCENE 標註{selectedLayer ? `：${selectedLayer.name}` : ""}</button>
             </div>
           </div>
-          <footer className="m1-statusbar"><span>Scene {sceneIndex + 1}/{project.sceneOrder.length}</span><span>{flattenedCount} 個圖層</span><span>{scene.width} × {scene.height}px</span><button className={project.editorSettings.snap ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { snap: !project.editorSettings.snap }))}>吸附</button><button className={project.editorSettings.guides ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { guides: !project.editorSettings.guides }))}>參考線</button><button className={project.editorSettings.pixelGrid ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { pixelGrid: !project.editorSettings.pixelGrid }))}>像素格</button><button onClick={() => setScenePan({ x: 0, y: 0 })}>畫布置中</button><span className="m1-tip">空白處拖曳，或按住 Space／中鍵平移</span></footer>
-          </> : <FlowOverview project={project} activeSceneId={activeSceneId} connectionFrom={connectionFrom} zoom={project.editorSettings.flowZoom ?? 1} onZoom={(flowZoom: number) => commit(updateEditorSettings(project, { flowZoom: Math.round(flowZoom * 10) / 10 }))} onAutoArrange={() => { if (window.confirm("自動整理會重新排列所有 Scene，連線內容不會改變。確定繼續？")) commit(autoArrangeScenes(project)); }} onSelect={setActiveSceneId} onStartConnection={(id: string) => setConnectionFrom(id)} onConnect={(id: string) => { if (connectionFrom) commit(addConnection(project, connectionFrom, id)); setConnectionFrom(null); }} onMoveStart={startFlowMove} onMovePreview={previewFlowMove} onMoveEnd={endFlowMove} onUpdateConnection={(id: string, label: string) => commit(updateConnection(project, id, { label }))} onRemoveConnection={(id: string) => commit(removeConnection(project, id))} />}
+          <footer className="m1-statusbar"><span>Scene {sceneIndex + 1}/{project.sceneOrder.length}</span><span>{flattenedCount} 個圖層</span><span>{scene.width} × {scene.height}px</span><button className={project.editorSettings.snap ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { snap: !project.editorSettings.snap }))}>吸附</button><button className={project.editorSettings.guides ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { guides: !project.editorSettings.guides }))}>參考線</button><button className={project.editorSettings.pixelGrid ? "active" : ""} onClick={() => commit(updateEditorSettings(project, { pixelGrid: !project.editorSettings.pixelGrid }))}>像素格</button><button onClick={() => setScenePan({ x: 0, y: 0 })}>畫布置中</button><button title="重設畫布縮放" onClick={() => { setScenePan({ x: 0, y: 0 }); updateViewSettings({ sceneZoom: 1 }); }}>{Math.round(sceneZoom * 100)}%</button><span className="m1-tip">空白處拖曳 · Ctrl＋滾輪縮放 · Space／中鍵平移</span></footer>
+          </> : <FlowOverview project={project} activeSceneId={activeSceneId} connectionFrom={connectionFrom} zoom={project.editorSettings.flowZoom ?? 1} onZoom={(flowZoom: number) => updateViewSettings({ flowZoom: Math.round(flowZoom * 10) / 10 })} onAutoArrange={() => { if (window.confirm("自動整理會重新排列所有 Scene，連線內容不會改變。確定繼續？")) commit(autoArrangeScenes(project)); }} onSelect={setActiveSceneId} onStartConnection={(id: string) => setConnectionFrom(id)} onConnect={(id: string) => { if (connectionFrom) commit(addConnection(project, connectionFrom, id)); setConnectionFrom(null); }} onMoveStart={startFlowMove} onMovePreview={previewFlowMove} onMoveEnd={endFlowMove} onUpdateConnection={(id: string, label: string) => commit(updateConnection(project, id, { label }))} onRemoveConnection={(id: string) => commit(removeConnection(project, id))} />}
         </section>
 
         <aside className="m1-right">
