@@ -5,6 +5,7 @@ import {
   clientDragDelta,
   hasDragIntent,
   nextFlowScenePosition,
+  nextFlowCardSize,
   nextScrollAfterZoom,
   nextScrollPan,
   nextTranslationAfterZoom,
@@ -31,6 +32,13 @@ test("Scene canvas translation updates both axes without aspect-ratio scaling", 
 test("flow card movement compensates for overview zoom on both axes", () => {
   assert.deepEqual(nextFlowScenePosition({ x: 80, y: 120 }, 100, 100, 150, 75, .5), { x: 180, y: 70 });
   assert.deepEqual(clientDragDelta(100, 100, 150, 75, 2), { x: 25, y: -12.5 });
+});
+
+test("flow card resizing follows zoom, clamps limits and supports Shift aspect lock", () => {
+  assert.deepEqual(nextFlowCardSize({ width: 280, height: 260 }, 100, 100, 150, 125, .5), { width: 380, height: 310 });
+  assert.deepEqual(nextFlowCardSize({ width: 280, height: 140 }, 0, 0, 100, 20, 1, true), { width: 380, height: 190 });
+  assert.deepEqual(nextFlowCardSize({ width: 280, height: 260 }, 0, 0, 9999, 9999, 1), { width: 640, height: 600 });
+  assert.deepEqual(nextFlowCardSize({ width: 280, height: 260 }, 100, 100, -9999, -9999, 1), { width: 200, height: 180 });
 });
 
 test("Ctrl-wheel zoom clamps its range and follows wheel direction", () => {

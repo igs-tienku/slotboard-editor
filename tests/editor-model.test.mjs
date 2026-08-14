@@ -16,6 +16,7 @@ import {
   createHistory,
   createProject,
   deserializeProject,
+  defaultFlowCardSize,
   duplicateScene,
   groupLayers,
   locateLayerInScene,
@@ -120,7 +121,9 @@ test("flow positions, branching connections and anchored annotations persist", (
   project = updateAnnotation(project, first, annotationId, { x: 1080, y: 160 });
   project = moveAnnotation(project, first, annotationId, { x: 99999, y: -80 });
   const restored = deserializeProject(serializeProject(project));
-  assert.deepEqual(restored.scenes[first].overview, { x: 80, y: 120 });
+  assert.equal(restored.scenes[first].overview.x, 80);
+  assert.equal(restored.scenes[first].overview.y, 120);
+  assert.deepEqual({ width: restored.scenes[first].overview.width, height: restored.scenes[first].overview.height }, defaultFlowCardSize(restored.scenes[first]));
   assert.equal(restored.connections.length, 2);
   assert.equal(restored.scenes[first].annotations[0].targetLayerId, targetLayerId);
   assert.equal(restored.scenes[first].annotations[0].x, restored.scenes[first].width + 420 - restored.scenes[first].annotations[0].width);
@@ -167,9 +170,29 @@ test("flow workspace accepts negative coordinates and reports its real limit", (
   let project = createProject("大型流程");
   const sceneId = project.sceneOrder[0];
   project = updateSceneOverview(project, sceneId, { x: -4800, y: -7300 });
-  assert.deepEqual(project.scenes[sceneId].overview, { x: -4800, y: -7300 });
+  assert.equal(project.scenes[sceneId].overview.x, -4800);
+  assert.equal(project.scenes[sceneId].overview.y, -7300);
   project = updateSceneOverview(project, sceneId, { x: -99999, y: 99999 });
-  assert.deepEqual(project.scenes[sceneId].overview, { x: -12000, y: 12000 });
+  assert.equal(project.scenes[sceneId].overview.x, -12000);
+  assert.equal(project.scenes[sceneId].overview.y, 12000);
+});
+
+test("flow cards default to scene-aware preview sizes and persist independent resizing", () => {
+  let project = createProject("流程卡片尺寸");
+  const landscapeId = project.sceneOrder[0];
+  const portrait = addScene(project, "直版", { size: { width: 1080, height: 1920 } }); project = portrait.project;
+  assert.deepEqual(defaultFlowCardSize(project.scenes[landscapeId]), { width: 280, height: 264 });
+  assert.deepEqual(defaultFlowCardSize(project.scenes[portrait.sceneId]), { width: 280, height: 426 });
+  project = updateSceneOverview(project, landscapeId, { width: 520, height: 360 });
+  project = updateSceneOverview(project, portrait.sceneId, { width: 9999, height: 10 });
+  const restored = deserializeProject(serializeProject(project));
+  assert.deepEqual({ width: restored.scenes[landscapeId].overview.width, height: restored.scenes[landscapeId].overview.height }, { width: 520, height: 360 });
+  assert.deepEqual({ width: restored.scenes[portrait.sceneId].overview.width, height: restored.scenes[portrait.sceneId].overview.height }, { width: 640, height: 180 });
+  const legacy = createProject("舊流程卡片");
+  const legacyId = legacy.sceneOrder[0];
+  delete legacy.scenes[legacyId].overview.width; delete legacy.scenes[legacyId].overview.height;
+  const migrated = deserializeProject(serializeProject(legacy));
+  assert.deepEqual({ width: migrated.scenes[legacyId].overview.width, height: migrated.scenes[legacyId].overview.height }, { width: 280, height: 264 });
 });
 
 test("flow auto-arrange handles branches and cycles while zoom persists", () => {
@@ -178,18 +201,24 @@ test("flow auto-arrange handles branches and cycles while zoom persists", () => 
   const second = addScene(project, "FG"); project = second.project;
   const third = addScene(project, "選擇分支"); project = third.project;
   const fourth = addScene(project, "循環返回"); project = fourth.project;
+  const fifth = addScene(project, "未連線補充"); project = fifth.project;
   project = addConnection(project, first, second.sceneId, "進 FG");
   project = addConnection(project, first, third.sceneId, "分支");
   project = addConnection(project, second.sceneId, fourth.sceneId, "結束");
   project = addConnection(project, fourth.sceneId, second.sceneId, "重試");
+  project = updateSceneOverview(project, first, { width: 520, height: 400 });
+  project = updateSceneOverview(project, fifth.sceneId, { width: 300, height: 500 });
   project = updateEditorSettings(project, { flowZoom: 0.7, sceneZoom: 1.35 });
   project = autoArrangeScenes(project);
   const restored = deserializeProject(serializeProject(project));
   assert.equal(restored.editorSettings.flowZoom, 0.7);
   assert.equal(restored.editorSettings.sceneZoom, 1.35);
   assert.equal(restored.scenes[first].overview.x, 80);
-  assert.ok(restored.scenes[third.sceneId].overview.x > restored.scenes[first].overview.x);
-  assert.equal(new Set(restored.sceneOrder.map((id) => `${restored.scenes[id].overview.x},${restored.scenes[id].overview.y}`)).size, 4);
+  assert.ok(restored.scenes[third.sceneId].overview.x >= restored.scenes[first].overview.x + 520 + 100);
+  assert.equal(restored.scenes[fifth.sceneId].overview.x, restored.scenes[first].overview.x);
+  assert.ok(restored.scenes[fifth.sceneId].overview.y >= restored.scenes[first].overview.y + 400 + 70);
+  assert.equal(restored.scenes[first].overview.width, 520);
+  assert.equal(new Set(restored.sceneOrder.map((id) => `${restored.scenes[id].overview.x},${restored.scenes[id].overview.y}`)).size, 5);
 });
 
 test("scene rename, reorder and duplicate preserve stable source data", () => {

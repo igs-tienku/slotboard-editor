@@ -1,0 +1,199 @@
+{
+  "round": 1,
+  "review_mode": "codex-internal",
+  "rubric_version": "1.0",
+  "objective_checks": [
+    {
+      "name": "Complete automated test suite",
+      "status": "PASS",
+      "evidence": "npm run test: 51/51 passed, including build, PSD, package, migration, interaction and rendered-source tests."
+    },
+    {
+      "name": "Static quality",
+      "status": "PASS",
+      "evidence": "npm run lint completed with zero errors and zero warnings; git diff --check passed."
+    },
+    {
+      "name": "Performance budgets",
+      "status": "PASS",
+      "evidence": "npm run benchmark passed: real render/export workload 569.3223 ms; 50 Scenes × 100 layers 31.8701 ms."
+    }
+  ],
+  "scores": [
+    {
+      "id": "C1",
+      "name": "完整畫布預覽與尺寸適配",
+      "score": 92,
+      "checks_against": [
+        {
+          "candidate": "直版或極端比例 Scene 可能仍被固定高度裁切或拉伸。",
+          "result": "app/globals.css:320 使用 object-fit: contain；app/editor.tsx:278 的 SVG viewBox 覆蓋 scene.width × scene.height；模型測試驗證橫版 280×264、直版 280×426 的不同預設高度。"
+        },
+        {
+          "candidate": "卡片縮小後預覽可能被文字與按鈕完全擠掉。",
+          "result": "app/globals.css:318-325 使用 minmax(0, 1fr) 將剩餘區域保留給預覽，卡片最小高度 180 且控制列有固定下限；未取得真實瀏覽器截圖，故不給 95 分以上。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "app/editor.tsx:264-281, 411-421",
+          "observation": "縮圖 SVG 的 viewBox 使用完整 Scene 尺寸；卡片顯示 Scene 名稱、像素尺寸、圖層數與標註數。",
+          "effect": "直接支持完整畫布與辨識資訊要求。"
+        },
+        {
+          "location": "app/globals.css:318-325",
+          "observation": "預覽為可伸縮主列，圖片以 contain 置中且不拉伸。",
+          "effect": "不同卡片尺寸下仍保持完整畫面比例。"
+        },
+        {
+          "location": "tests/editor-model.test.mjs:179-196; tests/rendered-html.test.mjs:133-142",
+          "observation": "橫直版預設尺寸與完整預覽關鍵 CSS／結構均有防回歸斷言。",
+          "effect": "尺寸適配不是僅靠未驗證的視覺宣稱。"
+        }
+      ],
+      "problems": [
+        "本輪沒有連接到可操作瀏覽器，因此缺少實際視窗尺寸下的截圖與滑鼠觀察；源碼與測試足以過關，但信心低於優秀上限。"
+      ],
+      "required_changes": []
+    },
+    {
+      "id": "C2",
+      "name": "卡片縮放操作、持久化與 Undo",
+      "score": 94,
+      "checks_against": [
+        {
+          "candidate": "縮放控制點的 pointerdown 可能冒泡成卡片移動。",
+          "result": "app/editor.tsx:412-416 的 startCardResize 同時 preventDefault 與 stopPropagation，並設定 mode=resize；卡片本身也排除 button 起拖。"
+        },
+        {
+          "candidate": "流程 zoom 後縮放靈敏度會失真，或 Shift／上下限不可靠。",
+          "result": "lib/interaction-math.js:27-41 以 client delta / zoom 計算並集中限制；tests/interaction-math.test.mjs:37-42 覆蓋 zoom 0.5、Shift、最大與最小值。"
+        },
+        {
+          "candidate": "縮放每個 pointermove 都污染 Undo，或重開專案遺失尺寸。",
+          "result": "app/editor.tsx:805-823 使用 baseHistory 預覽並只在 pointerup commitHistory 一次；模型 serialize/deserialize 測試保留自訂尺寸。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "app/editor.tsx:365-384, 411-421",
+          "observation": "resize 與 move 具有不同 mode、獨立控制點、pointer capture 與 Shift 提示。",
+          "effect": "縮放不會與移動按壓路由混淆。"
+        },
+        {
+          "location": "lib/interaction-math.js:27-41; tests/interaction-math.test.mjs:37-42",
+          "observation": "縮放數學為純函式且四類關鍵情境精確比對結果。",
+          "effect": "手感倍率與尺寸邊界可機械驗證。"
+        },
+        {
+          "location": "lib/editor-model.js:579-591; tests/editor-model.test.mjs:179-196",
+          "observation": "overview width/height 被限制並通過序列化與舊檔補值測試。",
+          "effect": "尺寸可持久保存且舊專案可用。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    },
+    {
+      "id": "C3",
+      "name": "連線幾何與自動排列一致性",
+      "score": 95,
+      "checks_against": [
+        {
+          "candidate": "連線仍可能使用舊固定 220×160 尺寸。",
+          "result": "app/editor.tsx:390-395 從每張 Scene overview/defaultFlowCardSize 取得 fromSize/toSize，端點使用實際 width 與 height/2。"
+        },
+        {
+          "candidate": "自動整理可能以固定步距排列，導致大卡片重疊。",
+          "result": "lib/editor-model.js:617-633 以每欄最大寬度 +100，以及每卡實際高度 +70 累進；測試用 520×400 與 300×500 卡片驗證間距。"
+        },
+        {
+          "candidate": "加入 resize 後會破壞流程平移、卡片移動或連線標註。",
+          "result": "既有雙軸平移、zoom 卡片移動、連線標註及完整 rendered-source 測試在 51/51 中全部通過。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "app/editor.tsx:390-406",
+          "observation": "連線曲線與標註中點由卡片實際幾何產生。",
+          "effect": "卡片尺寸變更會即時反映至連線。"
+        },
+        {
+          "location": "lib/editor-model.js:617-633; tests/editor-model.test.mjs:198-221",
+          "observation": "變動尺寸的欄寬與列高被納入排列，分支、循環、未連線 Scene 一併測試。",
+          "effect": "避免固定尺寸假設造成重疊。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    },
+    {
+      "id": "C4",
+      "name": "相容性、效能與回歸安全",
+      "score": 96,
+      "checks_against": [
+        {
+          "candidate": "舊 schema v3 overview 沒有尺寸，載入後可能出現 undefined 或零尺寸。",
+          "result": "lib/editor-model.js:199-204 補入 ratio-aware default；tests/editor-model.test.mjs:191-196 刪除舊欄位後序列化重載，得到 280×264。"
+        },
+        {
+          "candidate": "變大縮圖可能拖慢大型專案或破壞輸出。",
+          "result": "benchmark 兩項通過；完整測試中的真實 Canvas、PSD、PDF、package、PSD 層序與 Worker 路徑全部通過。"
+        },
+        {
+          "candidate": "Hook 或型別問題可能只在 production build 出現。",
+          "result": "TypeScript production build 通過；Lint 在修正初次 warning 後以零 warning 通過。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "objective-checks-round-1.md",
+          "observation": "51/51、Lint 零警告、兩項效能基準、PSD 驗證與 diff check 均 PASS。",
+          "effect": "覆蓋相容性、輸出、效能與靜態品質。"
+        },
+        {
+          "location": "lib/editor-model.js:199-204; tests/editor-model.test.mjs:191-196",
+          "observation": "同 schema 舊檔缺少尺寸時可自動遷移。",
+          "effect": "既有使用者專案不需手動升級。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    },
+    {
+      "id": "C5",
+      "name": "交付完整性與可維護性",
+      "score": 95,
+      "checks_against": [
+        {
+          "candidate": "版本可能只更新 package，導致匯出 manifest、生成 Skill 或 Pages cache key 不一致。",
+          "result": "package.json、package-lock、lib/project-package.js、生成 Skill、build 與 rendered HTML 測試均一致指向 0.22.0/M22。"
+        },
+        {
+          "candidate": "尺寸邏輯散落於 UI，難以測試與維護。",
+          "result": "defaultFlowCardSize 位於 editor-model，nextFlowCardSize 位於 interaction-math；UI 僅負責事件路由，兩個 helper 都有直接測試。"
+        },
+        {
+          "candidate": "內審可能無法確認被評版本未在評分中修改。",
+          "result": "frozen-deliverable-round-1.md 記錄 base commit、diff hash 與九個核心檔 SHA-256；評分期間只有 review JSON 新增，產品檔未修改。"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "README.md:174-180",
+          "observation": "M22 說明完整列出適配、資訊、縮放、Undo、連線與自動整理。",
+          "effect": "使用與維護邊界可追溯。"
+        },
+        {
+          "location": "frozen-deliverable-round-1.md; objective-checks-round-1.md",
+          "observation": "交付物具檔案雜湊與可重現檢查紀錄。",
+          "effect": "審核結果可對應到明確版本。"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    }
+  ],
+  "hard_failures": [],
+  "summary": "Codex 內部稽核第 1 輪：五項均達 85 分以上，未發現一票否決。完整畫布預覽、可變卡片縮放、連線、自動排列、舊檔相容與效能均有直接證據；唯一非阻斷限制是本輪缺少真實瀏覽器視覺／滑鼠紀錄。"
+}

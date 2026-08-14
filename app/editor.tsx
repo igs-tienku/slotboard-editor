@@ -19,6 +19,7 @@ import {
   createHistory,
   createId,
   createProject,
+  defaultFlowCardSize,
   deserializeProject,
   distributeLayers,
   DEFAULT_ANNOTATION_SIZE,
@@ -61,7 +62,7 @@ import {
   updateSymbol,
 } from "../lib/editor-model.js";
 import { loadRecoveryProject, saveRecoveryProject } from "../lib/recovery-storage.js";
-import { clampLayerTransformValue, hasDragIntent, nextFlowScenePosition, nextScrollAfterZoom, nextScrollPan, nextTranslationAfterZoom, nextTranslatedPan, nextWheelZoom, shouldReleaseNumberInputForWheel } from "../lib/interaction-math.js";
+import { clampLayerTransformValue, hasDragIntent, nextFlowCardSize, nextFlowScenePosition, nextScrollAfterZoom, nextScrollPan, nextTranslationAfterZoom, nextTranslatedPan, nextWheelZoom, shouldReleaseNumberInputForWheel } from "../lib/interaction-math.js";
 import { buildPrototypePsd, PROTOTYPE_FILE_NAME } from "../lib/psd-prototype.js";
 import { createProjectPackage, createTemplatePackage, openProjectPackage, openTemplatePackage } from "../lib/project-package.js";
 import { buildSceneFileNames, createProjectPdf, createPsdZip, createScenePsd, estimateExportWorkingSet } from "../lib/export-engine.js";
@@ -277,7 +278,7 @@ function SceneThumbnail({ scene }: { scene: any }) {
     sceneThumbnailCache.set(key, source);
     if (sceneThumbnailCache.size > 200) sceneThumbnailCache.delete(sceneThumbnailCache.keys().next().value as string);
   }
-  return <img className="m3-scene-thumbnail" src={source} alt="" />;
+  return <img className="m3-scene-thumbnail" src={source} alt={`${scene.name} 完整畫布預覽`} />;
 }
 
 function layerCenter(layers: any[], targetId: string, offsetX = 0, offsetY = 0): { x: number; y: number } | null {
@@ -307,8 +308,7 @@ function svgOwnerFromForeignObjectControl(control: Element) {
 }
 
 function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, onAutoArrange, onSelect, onStartConnection, onConnect, onMoveStart, onMovePreview, onMoveEnd, onLabelTransformStart, onLabelTransformPreview, onLabelTransformEnd, onUpdateConnection, onRemoveConnection }: any) {
-  const flowCardWidth = 220;
-  const flowCardMidY = 80;
+  const initialCardWidth = 280, initialCardHeight = 260;
   const origin = FLOW_WORKSPACE_LIMIT;
   const width = FLOW_WORKSPACE_LIMIT * 2 + 320, height = FLOW_WORKSPACE_LIMIT * 2 + 260;
   const drag = useRef<any>(null), labelDrag = useRef<any>(null), pan = useRef<any>(null);
@@ -320,8 +320,8 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
     const canvas = canvasRef.current;
     if (!canvas) return;
     if (!canvas.dataset.panReady) {
-      canvas.scrollLeft = (origin + flowCardWidth / 2) * zoom - canvas.clientWidth / 2;
-      canvas.scrollTop = (origin + flowCardMidY) * zoom - canvas.clientHeight / 2;
+      canvas.scrollLeft = (origin + initialCardWidth / 2) * zoom - canvas.clientWidth / 2;
+      canvas.scrollTop = (origin + initialCardHeight / 2) * zoom - canvas.clientHeight / 2;
       canvas.dataset.panReady = "true";
     } else if (previousZoom.current !== zoom) {
       const anchor = zoomAnchor.current ?? { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
@@ -375,7 +375,11 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
       if (!drag.current) return;
       if (!drag.current.moved && !hasDragIntent(drag.current.startX, drag.current.startY, event.clientX, event.clientY)) return;
       drag.current.moved = true;
-      onMovePreview(drag.current.id, nextFlowScenePosition({ x: drag.current.x, y: drag.current.y }, drag.current.startX, drag.current.startY, event.clientX, event.clientY, zoom));
+      if (drag.current.mode === "resize") {
+        onMovePreview(drag.current.id, nextFlowCardSize({ width: drag.current.width, height: drag.current.height }, drag.current.startX, drag.current.startY, event.clientX, event.clientY, zoom, event.shiftKey));
+      } else {
+        onMovePreview(drag.current.id, nextFlowScenePosition({ x: drag.current.x, y: drag.current.y }, drag.current.startX, drag.current.startY, event.clientX, event.clientY, zoom));
+      }
     }} onPointerUp={() => finishPointers(true)} onPointerCancel={() => finishPointers(false)}>
     <div className="m12-flow-scaled-space" style={{ width: width * zoom, height: height * zoom }}><div className="m12-flow-world" style={{ width, height, transform: `scale(${zoom})` }}>
     <svg className="m3-connections" style={{ width, height }}>
@@ -385,7 +389,9 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
       {project.connections.map((connection: any) => {
         const from = project.scenes[connection.fromSceneId]?.overview, to = project.scenes[connection.toSceneId]?.overview;
         if (!from || !to) return null;
-        const x1 = from.x + flowCardWidth + origin, y1 = from.y + flowCardMidY + origin, x2 = to.x + origin, y2 = to.y + flowCardMidY + origin;
+        const fromScene = project.scenes[connection.fromSceneId], toScene = project.scenes[connection.toSceneId];
+        const fromSize = { ...defaultFlowCardSize(fromScene), ...from }, toSize = { ...defaultFlowCardSize(toScene), ...to };
+        const x1 = from.x + fromSize.width + origin, y1 = from.y + fromSize.height / 2 + origin, x2 = to.x + origin, y2 = to.y + toSize.height / 2 + origin;
         const offset = connection.labelOffset ?? { x: 0, y: 0 }, size = connection.labelSize ?? DEFAULT_CONNECTION_LABEL_SIZE;
         const labelX = (x1 + x2) / 2 - size.width / 2 + offset.x, labelY = (y1 + y2) / 2 - size.height / 2 + offset.y;
         const startLabelTransform = (event: any, mode: "move" | "resize") => {
@@ -402,12 +408,19 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
     </svg>
     {project.sceneOrder.map((id: string, index: number) => {
       const scene = project.scenes[id];
-      return <div key={id} className={`m3-flow-card ${id === activeSceneId ? "active" : ""} ${id === connectionFrom ? "connecting" : ""}`} style={{ left: scene.overview.x + origin, top: scene.overview.y + origin }} onPointerDown={(event) => { if ((event.target as Element).closest("button")) return; drag.current = { id, x: scene.overview.x, y: scene.overview.y, startX: event.clientX, startY: event.clientY, moved: false }; onMoveStart(id); event.currentTarget.setPointerCapture?.(event.pointerId); onSelect(id); }}>
-        <span className="flow-card-index">{String(index + 1).padStart(2, "0")}</span><div className="flow-card-preview"><SceneThumbnail scene={scene} /></div><b>{scene.name}</b><small>{scene.layers.length} layers · {scene.annotations.length} notes</small>
-        <div><button onClick={() => onStartConnection(id)}>起點</button>{connectionFrom && connectionFrom !== id && <button className="connect-target" onClick={() => onConnect(id)}>連到這裡</button>}</div>
+      const cardSize = { ...defaultFlowCardSize(scene), ...scene.overview };
+      const startCardResize = (event: any) => {
+        event.preventDefault(); event.stopPropagation(); onSelect(id); onMoveStart(id);
+        drag.current = { id, mode: "resize", width: cardSize.width, height: cardSize.height, startX: event.clientX, startY: event.clientY, moved: false };
+        (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
+      };
+      return <div key={id} className={`m3-flow-card ${id === activeSceneId ? "active" : ""} ${id === connectionFrom ? "connecting" : ""}`} style={{ left: scene.overview.x + origin, top: scene.overview.y + origin, width: cardSize.width, height: cardSize.height }} onPointerDown={(event) => { if ((event.target as Element).closest("button")) return; drag.current = { id, mode: "move", x: scene.overview.x, y: scene.overview.y, startX: event.clientX, startY: event.clientY, moved: false }; onMoveStart(id); event.currentTarget.setPointerCapture?.(event.pointerId); onSelect(id); }}>
+        <span className="flow-card-index">{String(index + 1).padStart(2, "0")}</span><div className="flow-card-preview"><SceneThumbnail scene={scene} /></div><b title={scene.name}>{scene.name}</b><small>{scene.width} × {scene.height} · {scene.layers.length} layers · {scene.annotations.length} notes</small>
+        <div className="m22-flow-card-actions"><button onClick={() => onStartConnection(id)}>起點</button>{connectionFrom && connectionFrom !== id && <button className="connect-target" onClick={() => onConnect(id)}>連到這裡</button>}</div>
+        <button className="m22-flow-card-resize" title="拖曳調整 Scene 卡片尺寸；Shift 等比例" aria-label={`調整 ${scene.name} 流程卡片尺寸`} onPointerDown={startCardResize}>↘</button>
       </div>;
     })}
-    <div className="m3-flow-hint" style={{ left: origin + 16, top: origin + 16 }}>拖曳空白處平移大畫布 · Scene 與連線標註皆可拖曳 · Ctrl＋滾輪縮放</div>
+    <div className="m3-flow-hint" style={{ left: origin + 16, top: origin + 16 }}>拖曳空白處平移 · Scene 與連線標註皆可拖曳 · 卡片右下角縮放（Shift 等比例） · Ctrl＋滾輪縮放</div>
     </div></div>
   </div></div>;
 }
