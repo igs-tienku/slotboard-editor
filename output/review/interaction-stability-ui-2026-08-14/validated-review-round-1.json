@@ -1,0 +1,269 @@
+﻿{
+    "round":  1,
+    "review_mode":  "codex-internal",
+    "rubric_version":  "1.0",
+    "rubric_sha256":  "85BC130BB1C1DC1C5C0D24FDDBCBAFE9C96F593958C1AE460C42FB1B8F2B34C6",
+    "computed_verdict":  "PASS",
+    "passing_score":  90,
+    "passing_rule":  "all",
+    "objective_checks":  [
+                             {
+                                 "name":  "Strict review specification validation",
+                                 "status":  "PASS",
+                                 "evidence":  "validate-review-spec.ps1 -Strict accepted five criteria, passing score 90, all-rule, five rounds and one local image reference."
+                             },
+                             {
+                                 "name":  "Complete build and regression suite",
+                                 "status":  "PASS",
+                                 "evidence":  "npm run test passed TypeScript/build, PSD verification and 42/42 Node tests."
+                             },
+                             {
+                                 "name":  "Lint",
+                                 "status":  "PASS",
+                                 "evidence":  "npm run lint completed with zero reported errors."
+                             },
+                             {
+                                 "name":  "Performance benchmark",
+                                 "status":  "PASS",
+                                 "evidence":  "npm run benchmark passed 2/2 performance cases."
+                             },
+                             {
+                                 "name":  "Patch hygiene",
+                                 "status":  "PASS",
+                                 "evidence":  "git diff --check reported no whitespace errors and the implementation diff is limited to the requested interaction, layout, tests, version and documentation scope."
+                             }
+                         ],
+    "failed_objective_checks":  [
+
+                                ],
+    "scores":  [
+                   {
+                       "id":  "C1",
+                       "name":  "物件位置與拖曳生命週期",
+                       "score":  94,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "Scrolling the properties sidebar while a numeric field is focused could still alter Y and move the object to the Scene bottom.",
+                                                  "result":  "The root shell captures wheel events; a focused number input is blurred without preventing the same wheel from scrolling its container. X/Y/W/H updates are also constrained to the Scene as a second guard."
+                                              },
+                                              {
+                                                  "candidate":  "A pointer release outside the SVG or a browser interruption could leave dragRef active and apply a stale delta later.",
+                                                  "result":  "Window-capture pointerup finalizes the drag, while pointercancel, window blur and hidden visibility cancel the preview and clear drag, pan and guide state."
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "deliverables-round-1/app/editor.tsx:456-483",
+                                            "observation":  "finishDrag and cancelDrag are registered on window/document interruption paths and both clear dragRef, scenePanRef, guides and panning state.",
+                                            "effect":  "A drag no longer depends solely on SVG pointerup delivery for cleanup."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/app/editor.tsx:840-850,914",
+                                            "observation":  "Transform edits call clampLayerTransformValue; the main shell captures wheel events and releaseNumberInputWheel blurs only a focused number input.",
+                                            "effect":  "Sidebar scrolling cannot silently step a coordinate field, while keyboard and spinner editing remain available."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/tests/interaction-math.test.mjs:50-62; deliverables-round-1/tests/rendered-html.test.mjs:127-131",
+                                            "observation":  "Tests cover number-wheel eligibility, all four transform bounds and the four interruption-listener integrations.",
+                                            "effect":  "The identified accidental-move causes are directly protected from regression."
+                                        }
+                                    ],
+                       "problems":  [
+                                        "No connected Chrome control extension was available for a live pointer-interruption reproduction, so the score remains below the 95-100 band."
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C2",
+                       "name":  "Scene 縮放連續性",
+                       "score":  96,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "Rapid wheel events could repeatedly calculate from a stale render value and appear to bounce backward.",
+                                                  "result":  "Each event reads sceneZoomRef.current, immediately writes the new value back, and the listener no longer rebinds on each zoom render."
+                                              },
+                                              {
+                                                  "candidate":  "A late IndexedDB recovery result could overwrite a zoom action performed immediately after page load.",
+                                                  "result":  "Pointer, keyboard and wheel interaction mark userInteractedRef; asynchronous recovery restores only when that flag is still false."
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "deliverables-round-1/app/editor.tsx:408-452",
+                                            "observation":  "sceneZoom synchronizes into a ref; the native non-passive Ctrl-wheel handler uses previous=sceneZoomRef.current and writes sceneZoomRef.current=next before scheduling state.",
+                                            "effect":  "Back-to-back events form one ordered sequence rather than restarting from the previous render."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/app/editor.tsx:420-423,441,488,848,914",
+                                            "observation":  "Keyboard, wheel and pointer interaction all set userInteractedRef, and recovery checks it before replacing history.",
+                                            "effect":  "Late recovery cannot revert a user-initiated zoom or edit."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/tests/interaction-math.test.mjs:35-49; deliverables-round-1/tests/rendered-html.test.mjs:124-130",
+                                            "observation":  "Tests cover 1.0→1.1→1.2→1.1 sequences, limits, cursor anchoring, ref writeback, recovery guard and preventDefault integration.",
+                                            "effect":  "Both the state-sequencing fix and original cursor-centered behavior have regression evidence."
+                                        }
+                                    ],
+                       "problems":  [
+
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C3",
+                       "name":  "找回中央座標正確性",
+                       "score":  97,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "An oversized layer could be centered using its old size and then shrunk, leaving an incorrect edge position.",
+                                                  "result":  "The implementation normalizes width and height first, then calculates x and y from the normalized dimensions."
+                                              },
+                                              {
+                                                  "candidate":  "Invalid or extreme transforms could produce NaN or positions beyond the Scene.",
+                                                  "result":  "Non-finite dimensions fall back to one pixel; dimensions are clamped to Scene bounds and centered coordinates are non-negative finite values."
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "deliverables-round-1/lib/editor-model.js:347-356",
+                                            "observation":  "Width and height are finite-clamped to 1..scene dimension before x/y are derived from the remaining space.",
+                                            "effect":  "Normal and oversized objects use one deterministic center algorithm without order-dependent drift."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/tests/editor-model.test.mjs:288-316",
+                                            "observation":  "The existing off-canvas recovery test remains, and a 1200×300 object in a 960×540 Scene is asserted as x=0, y=120, width=960, height=300.",
+                                            "effect":  "Both ordinary recovery and the previous oversized ordering gap are checked exactly."
+                                        }
+                                    ],
+                       "problems":  [
+
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C4",
+                       "name":  "大字級屬性面板版面",
+                       "score":  93,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "The prior generic six-column selector could continue to squeeze distribution buttons and overlap the locate action.",
+                                                  "result":  "Dedicated higher-specificity classes set the alignment group to three columns, distribution to two columns with its own margin, and locate to a separate 40px-high row."
+                                              },
+                                              {
+                                                  "candidate":  "Separating the layout could accidentally remove disabled conditions or click handlers.",
+                                                  "result":  "The JSX retains all six align handlers, both distribute handlers with selectedIds\u003c3 disabled conditions, and the locateLayerInScene action."
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "deliverables-round-1/app/editor.tsx:1000-1004",
+                                            "observation":  "The panel contains m2-align-actions, m2-distribute-actions and a separate m6-locate button with original handlers and disabled logic intact.",
+                                            "effect":  "The three functional groups are structurally separable and retain behavior."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/app/globals.css:283-285",
+                                            "observation":  "Alignment uses three minmax columns, distribution uses two columns plus 8px top spacing, and locate has 40px minimum height plus 8px spacing and the 14px UI font level.",
+                                            "effect":  "The screenshot\u0027s six-column text collision and vertical overlap have bounded layout rules."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/tests/rendered-html.test.mjs:132-135",
+                                            "observation":  "Static integration tests require both row classes and their three/two-column grids.",
+                                            "effect":  "A return to the generic squeezed layout will fail the suite."
+                                        }
+                                    ],
+                       "problems":  [
+                                        "A post-fix Chrome screenshot is unavailable because browser control is not connected; the score is capped within the 90-94 band rather than claiming direct visual observation."
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   },
+                   {
+                       "id":  "C5",
+                       "name":  "全專案回歸與交付",
+                       "score":  96,
+                       "checks_against":  [
+                                              {
+                                                  "candidate":  "Global pointer and wheel guards could break canvas zoom, panning, Undo, export or performance.",
+                                                  "result":  "All 42 tests, PSD verification, lint and both performance cases pass, including existing drag threshold, two-axis pan, cursor anchor and export round-trip cases."
+                                              },
+                                              {
+                                                  "candidate":  "Patch-version metadata could disagree between app assets and exported package manifests.",
+                                                  "result":  "package metadata, lockfile, project package toolVersion and cache-busted asset tests all target 0.19.1."
+                                              }
+                                          ],
+                       "evidence":  [
+                                        {
+                                            "location":  "objective-checks-round-1.md",
+                                            "observation":  "Build, 42/42 tests, PSD validation, lint, 2/2 benchmark and diff checks are recorded as passing.",
+                                            "effect":  "The patch is supported by complete project-level checks, not only targeted unit tests."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/tests/interaction-math.test.mjs:14-49; deliverables-round-1/tests/rendered-html.test.mjs:80-135",
+                                            "observation":  "Legacy drag, two-axis pan, flow movement, Ctrl-wheel anchoring, flow-card dimensions and new interaction integrations remain asserted together.",
+                                            "effect":  "The requested fixes are checked alongside the features most likely to regress."
+                                        },
+                                        {
+                                            "location":  "deliverables-round-1/package.json:3",
+                                            "observation":  "The deliverable identifies version 0.19.1.",
+                                            "effect":  "The changes form a traceable patch release."
+                                        }
+                                    ],
+                       "problems":  [
+
+                                    ],
+                       "required_changes":  [
+
+                                            ]
+                   }
+               ],
+    "failed_criteria":  [
+
+                        ],
+    "hard_failures":  [
+
+                      ],
+    "computed_average_score":  95.2,
+    "reviewed_artifacts":  [
+                               {
+                                   "path":  "app\\editor.tsx",
+                                   "sha256":  "1B6AC008D86AB7EA085E12C7E92F7C614AED32427A40260D63CA8F835AE66BFE"
+                               },
+                               {
+                                   "path":  "app\\globals.css",
+                                   "sha256":  "63701B895FF347AFB9B65688728B7957F8F6F6CEFECD3F31E4F7B419FB03B9DE"
+                               },
+                               {
+                                   "path":  "lib\\editor-model.js",
+                                   "sha256":  "15750A16C236928932F58FC34065DC43A7514836AA635922966D6F996E53DC60"
+                               },
+                               {
+                                   "path":  "lib\\interaction-math.js",
+                                   "sha256":  "FE1ADA80C9BF1FFC738D4039EAC10FF1231105DBA1C72358C6C0D244C245F6D3"
+                               },
+                               {
+                                   "path":  "package.json",
+                                   "sha256":  "CDCF11AB5E2DAAA5C67B5E233B10C0480032FDFCB9CFD39588A30D85B19FCD9D"
+                               },
+                               {
+                                   "path":  "tests\\editor-model.test.mjs",
+                                   "sha256":  "815E1EB61FE2656F9DF099BE0B9355A66E09F40AD4147DEB0A8BF6253AA1F9EE"
+                               },
+                               {
+                                   "path":  "tests\\interaction-math.test.mjs",
+                                   "sha256":  "5274961347B07B960C6EF060DCFF5BF73BE2C0026044554C855348F3FEE27737"
+                               },
+                               {
+                                   "path":  "tests\\rendered-html.test.mjs",
+                                   "sha256":  "D957A59C57336543660AF06E00FA14D0CC43DAA201B9A1C37ECB19EA79F25D57"
+                               }
+                           ],
+    "summary":  "Round 1 internal audit finds all reported interaction and layout risks addressed with direct code and regression evidence. All criteria exceed 90; unavailable live Chrome evidence is explicitly reflected in C1 and C4 rather than assumed.",
+    "raw_review":  "D:\\codex_playground\\分鏡工具\\output\\review\\interaction-stability-ui-2026-08-14\\review-round-1.json"
+}
