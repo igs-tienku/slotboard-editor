@@ -300,6 +300,11 @@ function svgClientPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
   return { x: transformed.x, y: transformed.y };
 }
 
+function svgOwnerFromForeignObjectControl(control: Element) {
+  const foreignObject = control.closest("foreignObject") as SVGForeignObjectElement | null;
+  return foreignObject?.ownerSVGElement ?? null;
+}
+
 function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, onAutoArrange, onSelect, onStartConnection, onConnect, onMoveStart, onMovePreview, onMoveEnd, onLabelTransformStart, onLabelTransformPreview, onLabelTransformEnd, onUpdateConnection, onRemoveConnection }: any) {
   const flowCardWidth = 220;
   const flowCardMidY = 80;
@@ -674,7 +679,7 @@ export function SlotBoardEditor() {
 
   function startAnnotationDrag(event: any, annotation: any, mode: "move" | "resize" = "move") {
     event.preventDefault(); event.stopPropagation();
-    const svg = (event.currentTarget as SVGElement).ownerSVGElement;
+    const svg = svgOwnerFromForeignObjectControl(event.currentTarget as Element);
     const startPoint = svg ? svgClientPoint(svg, event.clientX, event.clientY) : { x: event.clientX, y: event.clientY };
     dragRef.current = {
       id: annotation.id, mode: `annotation-${mode}`, startX: event.clientX, startY: event.clientY,
