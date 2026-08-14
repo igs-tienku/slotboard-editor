@@ -1,0 +1,176 @@
+{
+  "round": 1,
+  "review_mode": "codex-internal",
+  "rubric_version": "1.0",
+  "objective_checks": [
+    {
+      "name": "Strict review specification validation",
+      "status": "PASS",
+      "evidence": "validate-review-spec.ps1 -Strict accepted 4 criteria, passing_score 90, passing_rule all, max_rounds 5, and one local image reference."
+    },
+    {
+      "name": "Complete build and regression suite",
+      "status": "PASS",
+      "evidence": "npm run test completed TypeScript/build, PSD verification, and 40/40 Node tests."
+    },
+    {
+      "name": "Lint",
+      "status": "PASS",
+      "evidence": "npm run lint completed with zero reported ESLint errors."
+    },
+    {
+      "name": "Performance benchmark",
+      "status": "PASS",
+      "evidence": "npm run benchmark completed 2/2 cases after rerunning outside the restricted child-process sandbox."
+    },
+    {
+      "name": "Patch hygiene",
+      "status": "PASS",
+      "evidence": "git diff --check returned no whitespace errors; source diff is limited to seven implementation/version/test files plus this task review pack."
+    }
+  ],
+  "scores": [
+    {
+      "id": "C1",
+      "name": "文字完整與按鈕尺寸",
+      "score": 94,
+      "checks_against": [
+        {
+          "candidate": "The general 34px history-button rule could still override the mode-button width and reproduce the Chrome clipping.",
+          "result": "The later and more specific .m1-history .m1-mode-button selector overrides width with auto and enforces a 68px minimum."
+        },
+        {
+          "candidate": "Chinese text could wrap or sit against the border even after increasing width.",
+          "result": "The dedicated rule adds 16px horizontal padding, white-space: nowrap, and a 12px Noto Sans TC font; both labels share the same class."
+        }
+      ],
+      "evidence": [
+        {
+          "location": "deliverables-round-1/app/editor.tsx:873-874",
+          "observation": "Scene and 流程 use the same m1-mode-button class and retain their original click handlers.",
+          "effect": "Both labels receive one symmetric sizing rule without changing mode-switch behavior."
+        },
+        {
+          "location": "deliverables-round-1/app/globals.css:127-128",
+          "observation": "Icon buttons remain 34px, while mode buttons explicitly use width:auto, min-width:68px, padding:0 16px, and white-space:nowrap.",
+          "effect": "The original clipping root cause is overridden locally, and the 68px size stays within the rubric's 64-88px range."
+        },
+        {
+          "location": "deliverables-round-1/tests/rendered-html.test.mjs:109-110",
+          "observation": "Regression assertions require the exact sizing safeguards and reject a 34px mode-button width.",
+          "effect": "Future changes cannot silently restore the reported narrow-button defect without failing tests."
+        }
+      ],
+      "problems": [
+        "A live post-fix Chrome screenshot could not be captured because no Chrome control extension was connected; the score is capped below 95 rather than treating browser interaction as completed."
+      ],
+      "required_changes": []
+    },
+    {
+      "id": "C2",
+      "name": "狀態辨識與可存取性",
+      "score": 96,
+      "checks_against": [
+        {
+          "candidate": "The selected state might remain color-only or be unavailable to assistive technology.",
+          "result": "Each mode button binds aria-pressed directly to the same viewMode predicate that controls the visual active class."
+        },
+        {
+          "candidate": "The new active style could recolor undo and redo controls.",
+          "result": "The active selector now requires both m1-mode-button and mode-active under m1-history, excluding icon controls."
+        }
+      ],
+      "evidence": [
+        {
+          "location": "deliverables-round-1/app/editor.tsx:873-874",
+          "observation": "Scene and 流程 expose boolean aria-pressed states while preserving setViewMode('scene'/'flow') click actions.",
+          "effect": "Visual and semantic state track the actual mode using the same source of truth."
+        },
+        {
+          "location": "deliverables-round-1/app/globals.css:127-128,158",
+          "observation": "Inactive controls retain #e8e9e5 on #292a27; active mode controls use #20211f on #d9ff43 via a dedicated selector.",
+          "effect": "Both states have clear light/dark contrast, and the active rule cannot target unrelated buttons."
+        },
+        {
+          "location": "deliverables-round-1/tests/rendered-html.test.mjs:101-103",
+          "observation": "Tests require the dedicated class and aria-pressed binding for both modes.",
+          "effect": "The accessibility state and style hook are protected against regression."
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    },
+    {
+      "id": "C3",
+      "name": "工具列空間與響應式穩定性",
+      "score": 93,
+      "checks_against": [
+        {
+          "candidate": "Allocating more space could stretch the buttons excessively or displace adjacent controls.",
+          "result": "Buttons use width:auto with a 68px minimum rather than flex growth; the three-column 1fr/auto/1fr topbar grid and JSX control order are unchanged."
+        },
+        {
+          "candidate": "The fix could alter existing narrow-window behavior.",
+          "result": "The 1050px rule still hides m1-history and changes the topbar to two columns; the 760px minimum-shell and secondary-action behavior are unchanged."
+        }
+      ],
+      "evidence": [
+        {
+          "location": "deliverables-round-1/app/globals.css:123,128",
+          "observation": "The header remains grid-template-columns:1fr auto 1fr; mode controls have content-sized width and a 68px floor only.",
+          "effect": "The central group receives enough room without being stretched to consume spare header space."
+        },
+        {
+          "location": "deliverables-round-1/app/globals.css:143-144",
+          "observation": "The existing 1050px and 760px responsive rules remain present and unchanged in behavior.",
+          "effect": "The local desktop fix does not replace the established responsive fallback strategy."
+        },
+        {
+          "location": "deliverables-round-1/app/editor.tsx:868-877",
+          "observation": "Brand, undo, redo, Scene, 流程, autosave, and five file-action buttons remain in their prior order.",
+          "effect": "No adjacent topbar capability was removed or reordered by the sizing repair."
+        }
+      ],
+      "problems": [
+        "Direct live-Chrome viewport evidence is unavailable in this environment, so the score remains in the 90-94 band despite the bounded CSS and unchanged breakpoints."
+      ],
+      "required_changes": []
+    },
+    {
+      "id": "C4",
+      "name": "回歸驗證與可交付性",
+      "score": 97,
+      "checks_against": [
+        {
+          "candidate": "A visual-only CSS change might pass inspection while breaking the build or unrelated export behavior.",
+          "result": "The full suite passed TypeScript/build, PSD verification, all 40 tests, ESLint, and both performance benchmarks."
+        },
+        {
+          "candidate": "Version metadata could be inconsistent across the app bundle and exported project manifest.",
+          "result": "package metadata, package lock, project-package toolVersion, cache-busted assets, and their tests all use 0.18.2."
+        }
+      ],
+      "evidence": [
+        {
+          "location": "objective-checks-round-1.md",
+          "observation": "All required objective checks are recorded as passing; the restricted benchmark startup failure and successful authorized rerun are both disclosed.",
+          "effect": "The delivery is supported by reproducible checks without hiding an environmental test-runner issue."
+        },
+        {
+          "location": "deliverables-round-1/tests/rendered-html.test.mjs:101-110",
+          "observation": "New assertions cover both aria states, the dedicated selector, width override, minimum width, horizontal padding, nowrap, and rejection of 34px.",
+          "effect": "The test suite directly covers the reported root cause and the acceptance constraints rather than only checking that CSS builds."
+        },
+        {
+          "location": "deliverables-round-1/package.json:3; deliverables-round-1/lib/project-package.js:5",
+          "observation": "Application and exported-package versions are both 0.18.2.",
+          "effect": "The repair is ready for a traceable patch release."
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    }
+  ],
+  "hard_failures": [],
+  "summary": "Round 1 internal audit finds the clipping root cause locally corrected and protected by direct regression assertions. Every criterion exceeds 90; live Chrome interaction was unavailable and is reflected as a score limitation rather than claimed evidence."
+}

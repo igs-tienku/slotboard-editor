@@ -1,0 +1,36 @@
+{
+  "round": 1,
+  "review_mode": "codex-internal",
+  "rubric_version": "1.0",
+  "objective_checks": [
+    {
+      "name": "Artifact-specific deterministic check",
+      "status": "PASS",
+      "evidence": "Command, measurement, render, or inspection result"
+    }
+  ],
+  "scores": [
+    {
+      "id": "C1",
+      "name": "Criterion name from criteria.md",
+      "score": 0,
+      "checks_against": [
+        {
+          "candidate": "A plausible way this criterion could fail",
+          "result": "What the audit found after checking"
+        }
+      ],
+      "evidence": [
+        {
+          "location": "Exact artifact location",
+          "observation": "What is directly observable",
+          "effect": "Why this supports the score"
+        }
+      ],
+      "problems": [],
+      "required_changes": []
+    }
+  ],
+  "hard_failures": [],
+  "summary": "Concise audit conclusion without claiming independence"
+}
