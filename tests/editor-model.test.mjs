@@ -123,7 +123,7 @@ test("flow positions, branching connections and anchored annotations persist", (
   assert.deepEqual(restored.scenes[first].overview, { x: 80, y: 120 });
   assert.equal(restored.connections.length, 2);
   assert.equal(restored.scenes[first].annotations[0].targetLayerId, targetLayerId);
-  assert.equal(restored.scenes[first].annotations[0].x, restored.scenes[first].width + 6000);
+  assert.equal(restored.scenes[first].annotations[0].x, restored.scenes[first].width + 420 - restored.scenes[first].annotations[0].width);
   assert.equal(restored.scenes[first].annotations[0].y, 0);
   assert.deepEqual(restored.connections[0].labelOffset, { x: 0, y: 0 });
   assert.deepEqual(restored.connections[0].labelSize, { width: 190, height: 92 });
@@ -138,7 +138,10 @@ test("annotations receive non-overlapping slots and persist editable sizes", () 
   const [first, second, third] = project.scenes[sceneId].annotations;
   assert.equal(first.width, 320);
   assert.ok(second.y >= first.y + first.height + 18);
-  assert.ok(third.x >= first.x + first.width + 18);
+  const overlaps = (a, b) => a.x < b.x + b.width + 18 && a.x + a.width + 18 > b.x && a.y < b.y + b.height + 18 && a.y + a.height + 18 > b.y;
+  assert.equal(overlaps(first, second), false);
+  assert.equal(overlaps(first, third), false);
+  assert.equal(overlaps(second, third), false);
   project = resizeAnnotation(project, sceneId, first.id, { width: 510, height: 240 });
   assert.deepEqual({ width: project.scenes[sceneId].annotations[0].width, height: project.scenes[sceneId].annotations[0].height }, { width: 510, height: 240 });
 });
@@ -157,7 +160,7 @@ test("legacy annotation cards are assigned geometry and separated when they over
   const [first, second] = restored.scenes[sceneId].annotations;
   assert.equal(first.width, 320);
   assert.equal(second.height, 170);
-  assert.ok(second.y >= first.y + first.height + 18 || second.x >= first.x + first.width + 18);
+  assert.ok(second.x + second.width + 18 <= first.x || first.x + first.width + 18 <= second.x || second.y + second.height + 18 <= first.y || first.y + first.height + 18 <= second.y);
 });
 
 test("flow workspace accepts negative coordinates and reports its real limit", () => {

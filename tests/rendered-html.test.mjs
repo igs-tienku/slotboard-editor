@@ -9,8 +9,8 @@ test("build emits the GitHub Pages-compatible application", async () => {
   ]);
   assert.match(html, /<title>SlotBoard 分鏡編輯器<\/title>/i);
   assert.match(html, /\.\/assets\//);
-  assert.match(html, /app\.js\?v=0\.21\.1/);
-  assert.match(html, /app\.css\?v=0\.21\.1/);
+  assert.match(html, /app\.js\?v=0\.21\.2/);
+  assert.match(html, /app\.css\?v=0\.21\.2/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
@@ -118,10 +118,14 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(css, /\.m1-statusbar\s*\{[^}]*overflow-x:\s*auto[^}]*white-space:\s*nowrap/s);
   assert.match(editor, /width=\{width\} height=\{height\} className="m11-note-object"/);
   assert.match(editor, /annotationCanvasWidth/);
+  assert.match(editor, /annotationCanvasWidth = scene\.width \+ ANNOTATION_PANE_WIDTH/);
+  assert.doesNotMatch(editor, /annotationCanvasWidth = Math\.max/);
   assert.match(editor, /m11-note-resize/);
   assert.match(editor, /svgOwnerFromForeignObjectControl/);
   assert.match(editor, /control\.closest\("foreignObject"\)/);
   assert.doesNotMatch(editor, /event\.currentTarget as SVGElement\)\.ownerSVGElement/);
+  assert.match(editor, /canvasMatrix = svg\?\.getScreenCTM\(\)\?\.inverse\(\)/);
+  assert.match(editor, /svgClientPoint\(svg, event\.clientX, event\.clientY, drag\.canvasMatrix\)/);
   assert.match(editor, /m20-flow-label-resize/);
   assert.match(editor, /FLOW_WORKSPACE_LIMIT/);
   assert.match(css, /\.m20-flow-boundary/);

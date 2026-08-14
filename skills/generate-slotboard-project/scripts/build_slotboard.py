@@ -15,7 +15,7 @@ from typing import Any
 
 
 SCHEMA_VERSION = 3
-TOOL_VERSION = "0.21.1"
+TOOL_VERSION = "0.21.2"
 KEY_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 SHAPE_KINDS = {"rectangle", "ellipse", "triangle", "star", "polygon", "line", "arrow"}
 ROOT_FIELDS = {"project", "scenes", "connections"}

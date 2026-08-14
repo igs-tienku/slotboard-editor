@@ -13,6 +13,7 @@ import {
   alignLayers,
   autoArrangeScenes,
   assignReelSymbol,
+  ANNOTATION_PANE_WIDTH,
   commitHistory,
   copyLayerSelection,
   createHistory,
@@ -291,12 +292,12 @@ function layerCenter(layers: any[], targetId: string, offsetX = 0, offsetY = 0):
   return null;
 }
 
-function svgClientPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
-  const matrix = svg.getScreenCTM();
-  if (!matrix) return { x: clientX, y: clientY };
+function svgClientPoint(svg: SVGSVGElement, clientX: number, clientY: number, frozenInverse?: DOMMatrix | null) {
+  const inverse = frozenInverse === undefined ? svg.getScreenCTM()?.inverse() : frozenInverse;
+  if (!inverse) return { x: clientX, y: clientY };
   const point = svg.createSVGPoint();
   point.x = clientX; point.y = clientY;
-  const transformed = point.matrixTransform(matrix.inverse());
+  const transformed = point.matrixTransform(inverse);
   return { x: transformed.x, y: transformed.y };
 }
 
@@ -608,7 +609,7 @@ export function SlotBoardEditor() {
     return count;
   }, [scene.layers]);
   const exportEstimate = useMemo(() => estimateExportWorkingSet(project), [project]);
-  const annotationCanvasWidth = Math.max(scene.width + 420, ...scene.annotations.map((annotation: any) => annotation.x + (annotation.width ?? DEFAULT_ANNOTATION_SIZE.width) + 40));
+  const annotationCanvasWidth = scene.width + ANNOTATION_PANE_WIDTH;
 
   function commit(nextProject: any) {
     if (project.compatibility?.readOnly) { setNotice("此專案來自較新的 schema，目前為唯讀；請先建立可編輯副本"); return; }
@@ -680,12 +681,14 @@ export function SlotBoardEditor() {
   function startAnnotationDrag(event: any, annotation: any, mode: "move" | "resize" = "move") {
     event.preventDefault(); event.stopPropagation();
     const svg = svgOwnerFromForeignObjectControl(event.currentTarget as Element);
-    const startPoint = svg ? svgClientPoint(svg, event.clientX, event.clientY) : { x: event.clientX, y: event.clientY };
+    const canvasMatrix = svg?.getScreenCTM()?.inverse() ?? null;
+    const startPoint = svg ? svgClientPoint(svg, event.clientX, event.clientY, canvasMatrix) : { x: event.clientX, y: event.clientY };
     dragRef.current = {
       id: annotation.id, mode: `annotation-${mode}`, startX: event.clientX, startY: event.clientY,
       startCanvasX: startPoint.x, startCanvasY: startPoint.y,
       baseHistory: historyRef.current, basePosition: { x: annotation.x, y: annotation.y }, latest: historyRef.current.present, moved: false,
       baseSize: { width: annotation.width ?? DEFAULT_ANNOTATION_SIZE.width, height: annotation.height ?? DEFAULT_ANNOTATION_SIZE.height },
+      canvasMatrix,
     };
     (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
   }
@@ -694,7 +697,7 @@ export function SlotBoardEditor() {
     const drag = dragRef.current;
     if (!drag) return;
     const svg = event.currentTarget as SVGSVGElement;
-    const point = svgClientPoint(svg, event.clientX, event.clientY);
+    const point = svgClientPoint(svg, event.clientX, event.clientY, drag.canvasMatrix);
     const dx = point.x - drag.startCanvasX;
     const dy = point.y - drag.startCanvasY;
     if (!drag.moved && !hasDragIntent(drag.startX, drag.startY, event.clientX, event.clientY)) return;
