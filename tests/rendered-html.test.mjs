@@ -9,8 +9,8 @@ test("build emits the GitHub Pages-compatible application", async () => {
   ]);
   assert.match(html, /<title>SlotBoard 分鏡編輯器<\/title>/i);
   assert.match(html, /\.\/assets\//);
-  assert.match(html, /app\.js\?v=0\.18\.2/);
-  assert.match(html, /app\.css\?v=0\.18\.2/);
+  assert.match(html, /app\.js\?v=0\.19\.0/);
+  assert.match(html, /app\.css\?v=0\.19\.0/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
@@ -108,4 +108,17 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(css, /\.m3-flow-canvas\s*\{[^}]*height:\s*0[^}]*overflow:\s*auto/s);
   assert.match(css, /\.m1-history \.m1-mode-button\s*\{[^}]*width:\s*auto[^}]*min-width:\s*68px[^}]*padding:\s*0 16px[^}]*white-space:\s*nowrap/s);
   assert.doesNotMatch(css, /\.m1-history \.m1-mode-button\s*\{[^}]*width:\s*34px/s);
+  assert.match(css, /--ui-font-xs:\s*12px/);
+  assert.match(css, /--ui-font-sm:\s*14px/);
+  assert.match(css, /--ui-font-base:\s*15px/);
+  assert.match(css, /--ui-font-control:\s*17px/);
+  assert.match(css, /--ui-font-emphasis:\s*18px/);
+  assert.match(css, /--ui-font-title:\s*20px/);
+  assert.match(css, /\.m1-toolstrip small\s*\{[^}]*font-size:\s*var\(--ui-font-xs\)/s);
+  assert.match(css, /\.m1-statusbar\s*\{[^}]*overflow-x:\s*auto[^}]*white-space:\s*nowrap/s);
+  assert.match(editor, /width=\{270\} height=\{138\} className="m11-note-object"/);
+  assert.match(editor, /const flowCardWidth = 220/);
+  assert.match(editor, /const flowCardMidY = 80/);
+  assert.match(editor, /from\.x \+ flowCardWidth/);
+  assert.match(editor, /from\.y \+ flowCardMidY/);
 });

@@ -195,3 +195,86 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .m7-shape-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 13px 12px; }
 .m7-shape-fields label { display: grid; gap: 4px; color: #777b73; font-size: 8px; }
 .m7-shape-fields input { min-width: 0; width: 100%; height: 30px; border: 1px solid #ced0c9; border-radius: 5px; background: white; }
+
+/* M19 readable UI typography: scale text without scaling the artwork canvas. */
+.m1-shell {
+  --ui-font-xs: 12px;
+  --ui-font-sm: 14px;
+  --ui-font-base: 15px;
+  --ui-font-control: 17px;
+  --ui-font-emphasis: 18px;
+  --ui-font-title: 20px;
+  font-size: var(--ui-font-base);
+  line-height: 1.4;
+}
+.m1-topbar { height: 72px; }
+.m1-workspace { height: calc(100vh - 72px); grid-template-columns: 230px minmax(580px, 1fr) 300px; }
+.m1-brand > span { font-size: var(--ui-font-emphasis); }
+.m1-brand small { font-size: var(--ui-font-sm); }
+.m1-brand b { font-size: var(--ui-font-title); }
+.m1-history { gap: 10px; }
+.m1-history button { width: 38px; height: 38px; font-size: var(--ui-font-base); }
+.m1-history span { min-width: 105px; font-size: var(--ui-font-base); }
+.m1-history .m1-mode-button { width: auto; min-width: 84px; padding: 0 16px; font-size: var(--ui-font-emphasis); }
+.m1-actions button { padding: 10px 14px; font-size: var(--ui-font-control); white-space: nowrap; }
+.m1-panel-title { min-height: 48px; font-size: var(--ui-font-sm); }
+.m1-panel-title b { min-width: 28px; font-size: var(--ui-font-sm); }
+.m1-scene-item { grid-template-columns: 24px 62px minmax(0, 1fr); gap: 9px; padding: 9px; }
+.m1-scene-index, .m1-scene-controls button { font-size: var(--ui-font-sm); }
+.m1-scene-item b { font-size: var(--ui-font-base); }
+.m1-scene-item small { font-size: var(--ui-font-xs); }
+.m1-scene-controls button { min-height: 36px; }
+.m1-field span { font-size: var(--ui-font-xs); }
+.m1-field input, .m1-field textarea, .m1-field select { font-size: var(--ui-font-base); }
+.m1-field input, .m1-field select { height: 38px; }
+.m1-toolstrip { height: 72px; }
+.m1-toolstrip button { min-width: 64px; }
+.m1-toolstrip small { font-size: var(--ui-font-xs); }
+.m1-statusbar { flex: 0 0 40px; height: 40px; gap: 14px; overflow-x: auto; font-size: var(--ui-font-sm); white-space: nowrap; }
+.m1-statusbar button { min-height: 28px; font-size: var(--ui-font-xs); }
+.m1-tabs, .m1-tabs b { height: 48px; font-size: var(--ui-font-base); }
+.m1-layer-row { min-height: 52px; grid-template-columns: 22px 28px minmax(0, 1fr) 28px; }
+.m1-layer-row button, .layer-label small { font-size: var(--ui-font-xs); }
+.layer-kind { width: 28px; height: 28px; font-size: var(--ui-font-sm); }
+.layer-label b, .empty-properties { font-size: var(--ui-font-base); }
+.m1-flips button, .m2-align-panel button, .segmented button, .m2-special-actions button { min-height: 36px; font-size: var(--ui-font-sm); }
+.m2-align-panel > span, .range-field, .m2-color-grid label { font-size: var(--ui-font-xs); }
+.m2-notice { font-size: var(--ui-font-base); }
+.m3-annotation-head, .m3-note > span { font-size: var(--ui-font-sm); }
+.m3-note textarea { font-size: var(--ui-font-base); }
+.m3-note small, .m3-note > button { font-size: var(--ui-font-xs); }
+.m11-note { width: 270px; height: 132px; grid-template-columns: 32px 1fr; }
+.m11-note .m11-note-handle { width: 30px; height: 30px; font-size: var(--ui-font-sm); }
+.m11-note textarea { min-height: 62px; }
+.m11-note .m11-note-delete { font-size: var(--ui-font-xs); }
+.m11-add-note { min-height: 40px; max-width: 330px; font-size: var(--ui-font-sm); }
+.flow-edge-label input, .m3-flow-card > small, .m3-flow-card button, .m12-flow-toolbar span { font-size: var(--ui-font-xs); }
+.flow-card-index, .m3-flow-hint, .m12-flow-toolbar b { font-size: var(--ui-font-sm); }
+.m3-flow-card { width: 220px; min-height: 160px; }
+.m3-flow-card > b { font-size: var(--ui-font-base); }
+.m3-flow-card button { min-height: 30px; }
+.m12-flow-toolbar { min-height: 50px; }
+.m12-flow-toolbar button { min-width: 36px; height: 36px; font-size: var(--ui-font-base); }
+.m12-flow-toolbar b { min-width: 54px; }
+.m13-readonly-banner { min-height: 52px; font-size: var(--ui-font-sm); }
+.m13-readonly-banner button { min-height: 36px; font-size: var(--ui-font-base); }
+.m13-readonly .m1-workspace { height: calc(100vh - 124px); }
+.m3-reel-actions button, .m3-column-item label, .m3-column-item select, .m3-symbol-panel .m1-panel-title button, .m3-symbol-row small { font-size: var(--ui-font-xs); }
+.m3-reel-actions button { min-height: 34px; }
+.m3-column-item { grid-template-columns: 76px minmax(0, 1fr); }
+.m3-symbol-row input:not([type=color]) { height: 34px; font-size: var(--ui-font-sm); }
+.m8-symbol-fields input { height: 34px; }
+.m5-export-modal { width: min(700px, 100%); }
+.m5-modal-head small, .m5-progress, .m15-export-estimate, .m10-setup-body label, .m10-setup-body legend, .m6-add-scene { font-size: var(--ui-font-sm); }
+.m5-modal-head h2 { font-size: 27px; }
+.m5-file-preview > div, .m5-export-actions button, .m6-context-menu button { font-size: var(--ui-font-base); }
+.m5-export-actions button { min-height: 48px; }
+.m10-setup-body input, .m10-setup-body select, .m10-size-row > button { height: 42px; font-size: var(--ui-font-base); }
+.m10-setup-actions button { min-height: 44px; font-size: var(--ui-font-base); }
+.m6-context-menu { width: 220px; }
+.m6-context-menu button { min-height: 40px; }
+.m7-palette-label, .m7-gray-palette button, .m7-shape-fields label { font-size: var(--ui-font-xs); }
+.m7-shape-fields input { height: 38px; }
+@media (max-width: 1050px) {
+  .m1-workspace { grid-template-columns: 200px minmax(540px, 1fr); }
+}

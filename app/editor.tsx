@@ -287,6 +287,8 @@ function svgClientPoint(svg: SVGSVGElement, clientX: number, clientY: number) {
 }
 
 function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, onAutoArrange, onSelect, onStartConnection, onConnect, onMoveStart, onMovePreview, onMoveEnd, onUpdateConnection, onRemoveConnection }: any) {
+  const flowCardWidth = 220;
+  const flowCardMidY = 80;
   const drag = useRef<any>(null);
   const pan = useRef<any>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -351,7 +353,7 @@ function FlowOverview({ project, activeSceneId, connectionFrom, zoom, onZoom, on
         const from = project.scenes[connection.fromSceneId]?.overview;
         const to = project.scenes[connection.toSceneId]?.overview;
         if (!from || !to) return null;
-        const x1 = from.x + 190, y1 = from.y + 62, x2 = to.x, y2 = to.y + 62;
+        const x1 = from.x + flowCardWidth, y1 = from.y + flowCardMidY, x2 = to.x, y2 = to.y + flowCardMidY;
         return <g key={connection.id}><path d={`M${x1} ${y1} C${x1 + 70} ${y1}, ${x2 - 70} ${y2}, ${x2} ${y2}`} fill="none" stroke="#6f772f" strokeWidth="2" markerEnd="url(#flowArrow)" /><foreignObject x={(x1 + x2) / 2 - 55} y={(y1 + y2) / 2 - 18} width="110" height="36"><div className="flow-edge-label"><input value={connection.label} onChange={(event) => onUpdateConnection(connection.id, event.target.value)} /><button onClick={() => onRemoveConnection(connection.id)}>×</button></div></foreignObject></g>;
       })}
     </svg>
@@ -927,7 +929,7 @@ export function SlotBoardEditor() {
               })}
               {scene.annotations.map((annotation: any, index: number) => {
                 const target: any = annotation.targetLayerId ? findLayer(scene.layers, annotation.targetLayerId) : null;
-                return <foreignObject key={annotation.id} x={annotation.x} y={annotation.y} width={240} height={112} className="m11-note-object">
+                return <foreignObject key={annotation.id} x={annotation.x} y={annotation.y} width={270} height={138} className="m11-note-object">
                   <div className="m3-note m11-note">
                     <button className="m11-note-handle" title="拖曳標註" onPointerDown={(event) => startAnnotationDrag(event, annotation)}>{index + 1}</button>
                     <textarea value={annotation.text} onChange={(event) => commit(updateAnnotation(project, activeSceneId, annotation.id, { text: event.target.value }))} />
