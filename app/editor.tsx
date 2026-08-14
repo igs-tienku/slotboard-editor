@@ -42,6 +42,7 @@ import {
   reorderScene,
   resetImagePlaceholder,
   resetSymbolImage,
+  scaleGroupChildren,
   SCENE_SIZE_PRESETS,
   serializeProject,
   undoHistory,
@@ -143,7 +144,7 @@ function ShapeVisual({ layer }: { layer: any }) {
   if (layer.kind === "ellipse") return <ellipse cx={width / 2} cy={height / 2} rx={width / 2} ry={height / 2} {...common} />;
   if (["triangle", "star", "polygon"].includes(layer.kind)) return <polygon points={shapePoints(layer.kind, width, height)} {...common} />;
   return <>
-    <line className="m20-line-hit-target" x1={4} y1={height / 2} x2={width - 8} y2={height / 2} fill="none" stroke="transparent" strokeWidth={14} vectorEffect="non-scaling-stroke" pointerEvents="stroke" />
+    <line className="m20-line-hit-target" x1={0} y1={height / 2} x2={width} y2={height / 2} fill="none" stroke="transparent" strokeWidth={24} strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="stroke" />
     <line x1={4} y1={height / 2} x2={width - 8} y2={height / 2} {...common} markerEnd={layer.kind === "arrow" ? "url(#arrowhead)" : undefined} />
   </>;
 }
@@ -209,20 +210,25 @@ function ReelGridVisual({ layer, symbols, assets }: { layer: any; symbols: any; 
   </>;
 }
 
-function LayerVisual({ layer, assets, selectedIds, onSelect, onContextMenu }: { layer: any; assets: any; selectedIds: string[]; onSelect: (event: any, id: string) => void; onContextMenu: (event: any, id: string) => void }) {
+function LayerVisual({ layer, assets, selectedIds, onSelect, onContextMenu, interactionId, interactionLocked }: { layer: any; assets: any; selectedIds: string[]; onSelect: (event: any, id: string) => void; onContextMenu: (event: any, id: string) => void; interactionId?: string; interactionLocked?: boolean }) {
   if (!layer.visible) return null;
   const transform = layer.transform;
+  const effectiveInteractionId = interactionId ?? layer.id;
+  const effectiveInteractionLocked = interactionLocked ?? layer.locked;
   const flipX = transform.flipX ? -1 : 1;
   const flipY = transform.flipY ? -1 : 1;
   const transformValue = `translate(${transform.x} ${transform.y}) rotate(${transform.rotation} ${transform.width / 2} ${transform.height / 2}) translate(${transform.flipX ? transform.width : 0} ${transform.flipY ? transform.height : 0}) scale(${flipX} ${flipY})`;
   return (
-    <g transform={transformValue} opacity={layer.opacity} data-layer-locked={layer.locked ? "true" : undefined} onPointerDown={(event) => onSelect(event, layer.id)} onContextMenu={(event) => onContextMenu(event, layer.id)} style={{ cursor: layer.locked ? "grab" : "move" }}>
+    <g transform={transformValue} opacity={layer.opacity} data-layer-locked={effectiveInteractionLocked ? "true" : undefined} onPointerDown={(event) => onSelect(event, effectiveInteractionId)} onContextMenu={(event) => onContextMenu(event, effectiveInteractionId)} style={{ cursor: effectiveInteractionLocked ? "grab" : "move" }}>
       {layer.type === "group"
-        ? layer.children.map((child: any) => <LayerVisual key={child.id} layer={child} assets={assets} selectedIds={selectedIds} onSelect={onSelect} onContextMenu={onContextMenu} />)
+        ? <>
+          <rect className="m20-group-hit-target" width={transform.width} height={transform.height} fill="transparent" pointerEvents="all" />
+          {layer.children.map((child: any) => <LayerVisual key={child.id} layer={child} assets={assets} selectedIds={selectedIds} onSelect={onSelect} onContextMenu={onContextMenu} interactionId={effectiveInteractionId} interactionLocked={effectiveInteractionLocked} />)}
+        </>
         : layer.type === "image" ? <ImageVisual layer={layer} asset={assets[layer.assetId]} />
           : layer.type === "text" ? <TextVisual layer={layer} />
             : layer.type === "reelGrid" ? <ReelGridVisual layer={layer} symbols={assets.__symbols ?? {}} assets={assets} /> : <ShapeVisual layer={layer} />}
-      {selectedIds.includes(layer.id) && (
+      {selectedIds.includes(layer.id) && effectiveInteractionId === layer.id && (
         <g className="selection-box">
           <rect width={transform.width} height={transform.height} fill="none" stroke="#d9ff43" strokeWidth={2} vectorEffect="non-scaling-stroke" pointerEvents="none" />
           <circle cx={transform.width} cy={transform.height} r={7} fill="#d9ff43" stroke="#20211f" strokeWidth={2} data-handle="resize" />
@@ -630,6 +636,7 @@ export function SlotBoardEditor() {
       startCanvasY: startPoint.y,
       baseHistory: historyRef.current,
       baseTransform: structuredClone(layer.transform),
+      baseChildren: layer.type === "group" ? structuredClone(layer.children) : null,
       latest: historyRef.current.present,
       moved: false,
     };
@@ -697,6 +704,11 @@ export function SlotBoardEditor() {
         const fitScale = Math.min(1, maxWidth / width, maxHeight / height);
         layer.transform.width = Math.round(width * fitScale);
         layer.transform.height = Math.round(height * fitScale);
+        if (layer.type === "group" && drag.baseChildren) {
+          const scaleX = layer.transform.width / Math.max(1, drag.baseTransform.width);
+          const scaleY = layer.transform.height / Math.max(1, drag.baseTransform.height);
+          layer.children = scaleGroupChildren(drag.baseChildren, scaleX, scaleY);
+        }
       } else {
         const cx = drag.baseTransform.x + drag.baseTransform.width / 2;
         const cy = drag.baseTransform.y + drag.baseTransform.height / 2;

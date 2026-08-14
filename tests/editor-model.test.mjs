@@ -29,6 +29,7 @@ import {
   replaceSymbolImage,
   resetImagePlaceholder,
   resetSymbolImage,
+  scaleGroupChildren,
   renameScene,
   reorderLayer,
   reorderScene,
@@ -384,4 +385,17 @@ test("legacy projects receive a one-time default background lock without relocki
   migrated.scenes[sceneId].layers.at(-1).locked = false;
   const reopened = deserializeProject(JSON.stringify(migrated));
   assert.equal(reopened.scenes[sceneId].layers.at(-1).locked, false);
+});
+
+test("group resizing scales every nested child from the same frozen geometry", () => {
+  const children = [{
+    id: "nested-group",
+    type: "group",
+    transform: { x: 10, y: 20, width: 100, height: 80 },
+    children: [{ id: "child", transform: { x: 5, y: 8, width: 40, height: 30 } }],
+  }];
+  const scaled = scaleGroupChildren(children, 2, .5);
+  assert.deepEqual(scaled[0].transform, { x: 20, y: 10, width: 200, height: 40 });
+  assert.deepEqual(scaled[0].children[0].transform, { x: 10, y: 4, width: 80, height: 15 });
+  assert.deepEqual(children[0].transform, { x: 10, y: 20, width: 100, height: 80 });
 });
