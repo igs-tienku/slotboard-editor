@@ -15,7 +15,7 @@ test("slotboard package round-trips 30 scenes and embedded assets", () => {
   assert.match(packaged.fileName, /\.slotboard$/);
   const files = unzipSync(packaged.bytes);
   const manifest = JSON.parse(strFromU8(files["manifest.json"]));
-  assert.equal(manifest.toolVersion, "0.20.1");
+  assert.equal(manifest.toolVersion, "0.21.0");
   assert.match(manifest.contentHashes["project.json"], /^fnv1a32:/);
   assert.match(manifest.assets[0].hash, /^fnv1a32:/);
   const restored = openProjectPackage(packaged.bytes);

@@ -9,8 +9,8 @@ test("build emits the GitHub Pages-compatible application", async () => {
   ]);
   assert.match(html, /<title>SlotBoard 分鏡編輯器<\/title>/i);
   assert.match(html, /\.\/assets\//);
-  assert.match(html, /app\.js\?v=0\.20\.1/);
-  assert.match(html, /app\.css\?v=0\.20\.1/);
+  assert.match(html, /app\.js\?v=0\.21\.0/);
+  assert.match(html, /app\.css\?v=0\.21\.0/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/i);
   await access(new URL("../dist/assets/", import.meta.url));
   await access(new URL("../dist/assets/export-worker.js", import.meta.url));
@@ -116,7 +116,13 @@ test("M6.1 editor keeps safe transforms, context actions and production exports 
   assert.match(css, /--ui-font-title:\s*20px/);
   assert.match(css, /\.m1-toolstrip small\s*\{[^}]*font-size:\s*var\(--ui-font-xs\)/s);
   assert.match(css, /\.m1-statusbar\s*\{[^}]*overflow-x:\s*auto[^}]*white-space:\s*nowrap/s);
-  assert.match(editor, /width=\{270\} height=\{138\} className="m11-note-object"/);
+  assert.match(editor, /width=\{width\} height=\{height\} className="m11-note-object"/);
+  assert.match(editor, /annotationCanvasWidth/);
+  assert.match(editor, /m11-note-resize/);
+  assert.match(editor, /m20-flow-label-resize/);
+  assert.match(editor, /FLOW_WORKSPACE_LIMIT/);
+  assert.match(css, /\.m20-flow-boundary/);
+  assert.match(css, /\.flow-edge-label textarea\s*\{[^}]*overflow:\s*auto/s);
   assert.match(editor, /const flowCardWidth = 220/);
   assert.match(editor, /const flowCardMidY = 80/);
   assert.match(editor, /from\.x \+ flowCardWidth/);

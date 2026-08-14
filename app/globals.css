@@ -289,3 +289,27 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .m2-align-panel > .m2-align-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .m2-align-panel > .m2-distribute-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
 .m2-align-panel > .m6-locate { min-height: 40px; margin-top: 8px; font-size: var(--ui-font-sm); }
+
+/* M21 editable annotations and spacious flow workspace */
+.m11-note-object { overflow: hidden; }
+.m11-note { position: relative; display: grid; grid-template: 34px minmax(0, 1fr) 28px / 1fr; width: 100%; height: 100%; gap: 0; padding: 0; overflow: hidden; }
+.m11-note-head { display: flex; align-items: center; gap: 8px; padding: 4px 9px; border-bottom: 1px solid #d9dbd3; background: #f0f2e7; color: #69702f; cursor: grab; user-select: none; touch-action: none; }
+.m11-note-head:active { cursor: grabbing; }
+.m11-note-head span { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid #9fb22d; border-radius: 50%; background: #d9ff43; color: #20211f; font: 800 12px Arial; }
+.m11-note-head b { font-size: 11px; letter-spacing: .04em; }
+.m11-note textarea { grid-column: 1; width: 100%; min-height: 0; padding: 10px 12px; overflow: auto; border: 0; outline: 0; resize: none; color: #2b2d28; font: 14px/1.5 "Noto Sans TC", sans-serif; white-space: pre-wrap; }
+.m11-note textarea:focus { box-shadow: inset 0 0 0 2px #a8bf36; }
+.m11-note-foot { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 32px 3px 10px; border-top: 1px solid #e1e2dc; background: #fafaf7; }
+.m11-note-foot small { min-width: 0; overflow: hidden; color: #858a80; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.m11-note .m11-note-delete { flex: 0 0 auto; padding: 2px 5px; border: 0; background: transparent; color: #a06760; font-size: 10px; }
+.m11-note-resize, .m20-flow-label-resize { position: absolute; right: 2px; bottom: 2px; width: 27px; height: 27px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 4px; background: #edf1dc; color: #657020; cursor: nwse-resize; touch-action: none; }
+.m20-flow-boundary { fill: none; stroke: #9a675f; stroke-width: 4; stroke-dasharray: 18 12; pointer-events: none; }
+.m20-flow-boundary-label { fill: #8a4f48; font: 700 18px "Noto Sans TC", sans-serif; pointer-events: none; }
+.m20-flow-label-object { overflow: hidden; }
+.flow-edge-label { position: relative; box-sizing: border-box; display: grid; grid-template-rows: 28px minmax(0, 1fr); width: 100%; height: 100%; padding: 0; overflow: hidden; box-shadow: 0 4px 13px #26282026; }
+.m20-flow-label-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 5px 0 9px; border-bottom: 1px solid #d6d9c8; background: #eaf0d4; color: #596326; cursor: grab; user-select: none; touch-action: none; }
+.m20-flow-label-head:active { cursor: grabbing; }
+.m20-flow-label-head b { font-size: 10px; }
+.m20-flow-label-head button { width: 23px; height: 23px; padding: 0; border: 0; background: transparent; color: #874d45; font-size: 15px; }
+.flow-edge-label textarea { width: 100%; min-width: 0; min-height: 0; padding: 7px 30px 8px 9px; overflow: auto; border: 0; outline: 0; background: #fbfcf5; color: #30332b; font: 12px/1.4 "Noto Sans TC", sans-serif; resize: none; white-space: pre-wrap; }
+.flow-edge-label textarea:focus { box-shadow: inset 0 0 0 2px #9fb62e; }
